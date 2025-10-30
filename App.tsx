@@ -26,17 +26,19 @@ const App: React.FC = () => {
       </header>
 
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex space-x-2 sm:space-x-4">
+        <nav className="container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Onglets d'analyse">
+            <div className="flex gap-2 sm:gap-4" role="tablist">
               {TABS.map((tab) => (
                 <button
                   key={tab.name}
                   onClick={() => setActiveTab(tab.name)}
-                  className={`py-3 px-3 sm:px-4 text-sm sm:text-base font-medium rounded-t-md transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 ${
+                  className={`py-3 px-3 sm:px-4 whitespace-nowrap text-sm sm:text-base font-medium rounded-t-md transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 ${
                     activeTab === tab.name
                       ? 'text-sky-700 border-b-2 border-sky-500'
-                      : 'text-slate-500 hover:text-sky-600 hover:bg-sky-50/50 border-b-2 border-transparent'
+                      : 'text-slate-500 hover:text-sky-600 hover:bg-slate-50/50 border-b-2 border-transparent'
                   }`}
+                  role="tab"
+                  aria-selected={activeTab === tab.name}
                 >
                   {tab.name}
                 </button>
