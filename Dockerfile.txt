@@ -1,29 +1,28 @@
-# Étape 1 : Construire l'application
+# Étape 1 : Construire l'application React
 FROM node:18-alpine AS builder
 WORKDIR /app
-
-# Copier les fichiers de définition de projet et installer les dépendances
-COPY package.json package-lock.json* ./
+COPY package.json .
+# Note: package-lock.json n'est pas fourni, donc on utilise seulement package.json
 RUN npm install
-
-# Copier le reste du code source
 COPY . .
-
-# Construire l'application pour la production
 RUN npm run build
 
-# Étape 2 : Servir l'application construite
+# Étape 2 : Servir l'application avec un serveur Node.js (Express)
 FROM node:18-alpine
 WORKDIR /app
 
-# Installer 'serve' pour servir les fichiers statiques
-RUN npm install -g serve
+# Copier uniquement les fichiers nécessaires pour la production
+COPY package.json .
+COPY server.js .
 
-# Copier uniquement les fichiers construits de l'étape précédente
-COPY --from=builder /app/dist .
+# Installer uniquement les dépendances de production
+RUN npm install --omit=dev
 
-# Exposer le port sur lequel 'serve' s'exécutera
+# Copier les fichiers construits de l'étape 'builder'
+COPY --from=builder /app/dist ./dist
+
+# Exposer le port sur lequel le serveur écoute
 EXPOSE 3000
 
-# Commande pour démarrer le serveur en mode SPA
-CMD ["serve", "-s", "."]
+# Commande pour démarrer le serveur
+CMD ["npm", "start"]
