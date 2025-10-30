@@ -27,7 +27,7 @@ const App: React.FC = () => {
 
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <nav className="container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Onglets d'analyse">
-            <div className="flex gap-2 sm:gap-4" role="tablist">
+            <div className="flex justify-center gap-2 sm:gap-4" role="tablist">
               {TABS.map((tab) => (
                 <button
                   key={tab.name}
