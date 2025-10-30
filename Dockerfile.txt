@@ -1,0 +1,19 @@
+# Utiliser une image Node.js légère
+FROM node:18-alpine
+
+# Définir le répertoire de travail dans le conteneur
+WORKDIR /app
+
+# Installer le paquet 'serve' globalement. C'est un serveur statique très simple.
+RUN npm install -g serve
+
+# Copier tous les fichiers de l'application dans le répertoire de travail
+COPY . .
+
+# Le paquet 'serve' expose l'application sur le port 3000 par défaut
+EXPOSE 3000
+
+# La commande pour démarrer le serveur.
+# L'option '-s' est cruciale car elle configure le serveur pour une Single Page Application (SPA),
+# en redirigeant toutes les requêtes non trouvées vers index.html.
+CMD ["serve", "-s", "."]

@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  sales-analyzer-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.txt
+    container_name: sales-analyzer-app
+    ports:
+      - "8081:3000"
+    restart: unless-stopped
+    networks:
+      - nginx_default
+
+networks:
+  nginx_default:
+    external: true

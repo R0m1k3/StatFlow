@@ -1,0 +1,5 @@
+{
+  "name": "Analyseur de Ventes Google Sheets",
+  "description": "Une application web pour visualiser et analyser les statistiques de ventes à partir de documents Google Sheets, avec une interface à onglets, des sélecteurs de période, et un affichage de données interactif et responsive.",
+  "requestFramePermissions": []
+}
