@@ -1,19 +1,29 @@
-# Utiliser une image Node.js légère
-FROM node:18-alpine
-
-# Définir le répertoire de travail dans le conteneur
+# Étape 1 : Construire l'application
+FROM node:18-alpine AS builder
 WORKDIR /app
 
-# Installer le paquet 'serve' globalement. C'est un serveur statique très simple.
-RUN npm install -g serve
+# Copier les fichiers de définition de projet et installer les dépendances
+COPY package.json package-lock.json* ./
+RUN npm install
 
-# Copier tous les fichiers de l'application dans le répertoire de travail
+# Copier le reste du code source
 COPY . .
 
-# Le paquet 'serve' expose l'application sur le port 3000 par défaut
+# Construire l'application pour la production
+RUN npm run build
+
+# Étape 2 : Servir l'application construite
+FROM node:18-alpine
+WORKDIR /app
+
+# Installer 'serve' pour servir les fichiers statiques
+RUN npm install -g serve
+
+# Copier uniquement les fichiers construits de l'étape précédente
+COPY --from=builder /app/dist .
+
+# Exposer le port sur lequel 'serve' s'exécutera
 EXPOSE 3000
 
-# La commande pour démarrer le serveur.
-# L'option '-s' est cruciale car elle configure le serveur pour une Single Page Application (SPA),
-# en redirigeant toutes les requêtes non trouvées vers index.html.
+# Commande pour démarrer le serveur en mode SPA
 CMD ["serve", "-s", "."]

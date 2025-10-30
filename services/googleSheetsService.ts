@@ -20,21 +20,41 @@ const parseCSV = (text: string): Record<string, string>[] => {
 
 export const getSheetNames = async (sheetId: string): Promise<string[]> => {
   const url = `${BASE_URL}${sheetId}/gviz/tq?tqx=out:csv&sheet=index`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Impossible de récupérer la liste des feuilles (index). Erreur HTTP ${response.status}. Veuillez vérifier que l'ID de la feuille est correct, que la feuille 'index' existe et que le document est partagé publiquement.`);
+  console.log(`[LOG] Tentative de récupération de l'index des feuilles depuis : ${url}`);
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      const errorMsg = `Impossible de récupérer la liste des feuilles (index). Statut HTTP : ${response.status}. Vérifiez l'ID de la feuille, l'existence de la feuille 'index' et les permissions de partage.`;
+      console.error(`[ERROR] ${errorMsg}`);
+      throw new Error(errorMsg);
+    }
+    const csvText = await response.text();
+    const parsed = parseCSV(csvText);
+    console.log(`[SUCCESS] Index des feuilles récupéré et parsé pour ${sheetId}.`);
+    return parsed.map(row => Object.values(row)[0]).filter(Boolean);
+  } catch (error) {
+    const errorMsg = `Erreur réseau ou inattendue lors de la récupération de l'index pour ${sheetId}.`;
+    console.error(`[FATAL] ${errorMsg}`, error);
+    throw new Error(`${errorMsg} Voir la console pour plus de détails.`);
   }
-  const csvText = await response.text();
-  const parsed = parseCSV(csvText);
-  return parsed.map(row => Object.values(row)[0]).filter(Boolean);
 };
 
 export const getSheetData = async (sheetId: string, sheetName: string): Promise<Record<string, string>[]> => {
   const url = `${BASE_URL}${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Impossible de récupérer les données pour la feuille: "${sheetName}" (Erreur HTTP ${response.status}).`);
+  console.log(`[LOG] Tentative de récupération des données pour la feuille "${sheetName}" depuis : ${url}`);
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      const errorMsg = `Impossible de récupérer les données pour la feuille "${sheetName}". Statut HTTP : ${response.status}.`;
+      console.error(`[ERROR] ${errorMsg}`);
+      throw new Error(errorMsg);
+    }
+    const csvText = await response.text();
+    console.log(`[SUCCESS] Données pour la feuille "${sheetName}" récupérées et parsées.`);
+    return parseCSV(csvText);
+  } catch (error) {
+    const errorMsg = `Erreur réseau ou inattendue lors de la récupération des données de la feuille "${sheetName}".`;
+    console.error(`[FATAL] ${errorMsg}`, error);
+    throw new Error(`${errorMsg} Voir la console pour plus de détails.`);
   }
-  const csvText = await response.text();
-  return parseCSV(csvText);
 };

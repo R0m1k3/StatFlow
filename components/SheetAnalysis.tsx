@@ -37,6 +37,7 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName }) => {
       dataCache.current = {};
 
       try {
+        console.log(`[SheetAnalysis] [${sheetId}] Démarrage de la récupération de l'index.`);
         const names = await getSheetNames(sheetId);
         
         const firstValidName = names.find(name => /^\d{4}-\d{1,2}$/.test(name) || /^\d{6}$/.test(name));
@@ -92,8 +93,11 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName }) => {
         } else {
             setIsLoading(false);
         }
+        console.log(`[SheetAnalysis] [${sheetId}] Index récupéré. Périodes:`, newPeriods);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Une erreur est survenue.');
+        const errorMessage = err instanceof Error ? err.message : 'Une erreur est survenue.';
+        console.error(`[SheetAnalysis] [${sheetId}] Erreur index:`, err);
+        setError(errorMessage);
         setIsLoading(false);
       }
     };
@@ -120,11 +124,15 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName }) => {
       setIsLoading(true);
       setError(null);
       try {
+        console.log(`[SheetAnalysis] [${sheetId}] Démarrage de la récupération des données pour: "${sheetName}"`);
         const data = await getSheetData(sheetId, sheetName);
         dataCache.current[sheetName] = data;
         setSheetData(data);
+        console.log(`[SheetAnalysis] [${sheetId}] Données récupérées pour: "${sheetName}".`);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Une erreur est survenue.');
+        const errorMessage = err instanceof Error ? err.message : 'Une erreur est survenue.';
+        console.error(`[SheetAnalysis] [${sheetId}] Erreur données pour "${sheetName}":`, err);
+        setError(errorMessage);
         setSheetData([]);
       } finally {
         setIsLoading(false);
