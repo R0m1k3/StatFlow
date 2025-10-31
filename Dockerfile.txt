@@ -1,35 +1,28 @@
-# Stage 1: Build the React application
-FROM node:20-alpine AS builder
-
-# Set the working directory
+# Étape 1 : Construire l'application React
+FROM node:18-alpine AS builder
 WORKDIR /app
-
-# Copy package.json and install dependencies
-# A lock file (package-lock.json) is recommended for reproducible builds
-COPY package.json ./
+COPY package.json .
+# Note: package-lock.json n'est pas fourni, donc on utilise seulement package.json
 RUN npm install
-
-# Copy the rest of the application source code
 COPY . .
-
-# Build the application for production
 RUN npm run build
 
-# Stage 2: Create the production image
-FROM node:20-alpine
-
+# Étape 2 : Servir l'application avec un serveur Node.js (Express)
+FROM node:18-alpine
 WORKDIR /app
 
-# Copy package.json and install only production dependencies
-COPY package.json ./
+# Copier uniquement les fichiers nécessaires pour la production
+COPY package.json .
+COPY server.js .
+
+# Installer uniquement les dépendances de production
 RUN npm install --omit=dev
 
-# Copy the built assets from the builder stage
+# Copier les fichiers construits de l'étape 'builder'
 COPY --from=builder /app/dist ./dist
 
-# Expose the port the app will run on
+# Exposer le port sur lequel le serveur écoute
 EXPOSE 8081
 
-# The command to start the app using 'serve'
-# This corresponds to the "start" script in package.json
+# Commande pour démarrer le serveur
 CMD ["npm", "start"]

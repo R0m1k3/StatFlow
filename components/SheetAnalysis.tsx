@@ -1,169 +1,210 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getSheetNames, getSheetData } from '../services/googleSheetsService';
 import SheetSelector from './SheetSelector';
 import SheetDisplay from './SheetDisplay';
+import Spinner from './Spinner';
 
 interface SheetAnalysisProps {
   sheetId: string;
+  tabName: string;
 }
 
-interface SheetInfo {
-  year: string;
-  month: string;
-  originalName: string;
+interface PeriodData {
+  [year: string]: string[];
 }
 
-const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId }) => {
-  const [sheetInfo, setSheetInfo] = useState<SheetInfo[]>([]);
-  const [availableYears, setAvailableYears] = useState<string[]>([]);
+type DateFormat = 'YYYY-MM' | 'YYYYMM';
+
+const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName }) => {
+  const [periods, setPeriods] = useState<PeriodData>({});
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
-
-  const [sheetData, setSheetData] = useState<string[][] | null>(null);
-  const [loadingSheets, setLoadingSheets] = useState<boolean>(true);
-  const [loadingData, setLoadingData] = useState<boolean>(false);
+  const [sheetData, setSheetData] = useState<Record<string, string>[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [cache, setCache] = useState<Record<string, string[][]>>({});
+  const [dateFormat, setDateFormat] = useState<DateFormat>('YYYY-MM');
 
+  const dataCache = useRef<Record<string, Record<string, string>[]>>({});
 
-  const fetchSheets = useCallback(async () => {
-    try {
+  useEffect(() => {
+    const fetchSheetIndex = async () => {
+      setIsLoading(true);
       setError(null);
-      setLoadingSheets(true);
-      setSheetData(null);
-      setCache({});
-      
-      const names = await getSheetNames(sheetId);
-      const parsed = names.map(name => {
-        const matchSpaced = name.match(/^(\d{4})\s*-\s*(\d{2})$/);
-        if (matchSpaced) return { year: matchSpaced[1], month: matchSpaced[2], originalName: name };
+      setSheetData([]);
+      setSelectedYear('');
+      setSelectedMonth('');
+      setPeriods({});
+      dataCache.current = {};
 
-        const matchCompact = name.match(/^(\d{4})(\d{2})$/);
-        if (matchCompact) return { year: matchCompact[1], month: matchCompact[2], originalName: name };
+      try {
+        console.log(`[SheetAnalysis] [${sheetId}] Démarrage de la récupération de l'index.`);
+        const names = await getSheetNames(sheetId);
         
-        return null;
-      }).filter((item): item is SheetInfo => item !== null);
-
-      // Sort by year then month, descending
-      parsed.sort((a, b) => b.originalName.localeCompare(a.originalName));
-
-      setSheetInfo(parsed);
-      
-      const years = [...new Set(parsed.map(p => p.year))].sort((a, b) => b.localeCompare(a));
-      setAvailableYears(years);
-      
-      if (years.length > 0) {
-        const latestYear = years[0];
-        setSelectedYear(latestYear);
-        const monthsForLatestYear = parsed.filter(p => p.year === latestYear).map(p => p.month);
-        if (monthsForLatestYear.length > 0) {
-          setSelectedMonth(monthsForLatestYear[0]);
-        } else {
-          setSelectedMonth('');
+        const firstValidName = names.find(name => /^\d{4}-\d{1,2}$/.test(name) || /^\d{6}$/.test(name));
+        
+        if (!firstValidName) {
+            if (names.length > 0) {
+                 setError("Aucune période valide (format AAAA-MM ou AAAAMM) n'a été trouvée dans la feuille 'index'.");
+            }
+            setIsLoading(false);
+            return;
         }
-      } else {
-        setSelectedYear('');
-        setSelectedMonth('');
-        setSheetData(null);
+
+        const detectedFormat: DateFormat = firstValidName.includes('-') ? 'YYYY-MM' : 'YYYYMM';
+        setDateFormat(detectedFormat);
+
+        const newPeriods: PeriodData = names.reduce((acc, name) => {
+          let year: string | undefined;
+          let month: string | undefined;
+
+          if (detectedFormat === 'YYYY-MM' && name.includes('-')) {
+            [year, month] = name.split('-');
+          } else if (detectedFormat === 'YYYYMM' && name.length === 6 && !isNaN(parseInt(name))) {
+            year = name.substring(0, 4);
+            month = name.substring(4, 6);
+          }
+          
+          if (year && month) {
+            if (!acc[year]) {
+              acc[year] = [];
+            }
+            if (!acc[year].includes(month)) {
+                acc[year].push(month);
+            }
+          }
+          return acc;
+        }, {} as PeriodData);
+        
+        Object.keys(newPeriods).forEach(year => {
+          newPeriods[year].sort((a, b) => parseInt(b) - parseInt(a));
+        });
+
+        setPeriods(newPeriods);
+
+        const latestYear = Object.keys(newPeriods).sort().pop();
+        if (latestYear) {
+          setSelectedYear(latestYear);
+          const latestMonth = newPeriods[latestYear]?.[0];
+          if (latestMonth) {
+            setSelectedMonth(latestMonth);
+          } else {
+            setIsLoading(false);
+          }
+        } else {
+            setIsLoading(false);
+        }
+        console.log(`[SheetAnalysis] [${sheetId}] Index récupéré. Périodes:`, newPeriods);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Une erreur est survenue.';
+        console.error(`[SheetAnalysis] [${sheetId}] Erreur index:`, err);
+        setError(errorMessage);
+        setIsLoading(false);
       }
-    } catch (err) {
-      setError('Erreur lors du chargement de l\'index des feuilles. Veuillez vérifier l\'URL et la configuration de la feuille.');
-      console.error(err);
-    } finally {
-      setLoadingSheets(false);
-    }
+    };
+
+    fetchSheetIndex();
   }, [sheetId]);
 
-  const fetchDataForSheet = useCallback(async (sheetName: string) => {
-    if (!sheetName) return;
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!selectedYear || !selectedMonth) {
+        return;
+      }
 
-    if (cache[sheetName]) {
-      setSheetData(cache[sheetName]);
-      return;
-    }
-
-    try {
+      const sheetName = dateFormat === 'YYYY-MM'
+        ? `${selectedYear}-${selectedMonth}`
+        : `${selectedYear}${selectedMonth}`;
+      
+      if (dataCache.current[sheetName]) {
+        setSheetData(dataCache.current[sheetName]);
+        setIsLoading(false);
+        return;
+      }
+      
+      setIsLoading(true);
       setError(null);
-      setLoadingData(true);
-      setSheetData(null);
-      const data = await getSheetData(sheetId, sheetName);
-      setCache(prevCache => ({ ...prevCache, [sheetName]: data }));
-      setSheetData(data);
-    } catch (err) {
-      setError(`Erreur lors du chargement des données pour la feuille: ${sheetName}.`);
-      console.error(err);
-    } finally {
-      setLoadingData(false);
-    }
-  }, [sheetId, cache]);
-  
-  useEffect(() => {
-    fetchSheets();
-  }, [fetchSheets]);
+      try {
+        console.log(`[SheetAnalysis] [${sheetId}] Démarrage de la récupération des données pour: "${sheetName}"`);
+        const data = await getSheetData(sheetId, sheetName);
+        dataCache.current[sheetName] = data;
+        setSheetData(data);
+        console.log(`[SheetAnalysis] [${sheetId}] Données récupérées pour: "${sheetName}".`);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Une erreur est survenue.';
+        console.error(`[SheetAnalysis] [${sheetId}] Erreur données pour "${sheetName}":`, err);
+        setError(errorMessage);
+        setSheetData([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  useEffect(() => {
-    const currentSheet = sheetInfo.find(s => s.year === selectedYear && s.month === selectedMonth);
-    if (currentSheet) {
-      fetchDataForSheet(currentSheet.originalName);
-    } else if (!loadingSheets && sheetInfo.length > 0) {
-        setSheetData(null);
+    fetchData();
+  }, [selectedYear, selectedMonth, sheetId, dateFormat]);
+
+  const processedSheetData = useMemo(() => {
+    if (tabName === 'Hit Parade' && sheetData.length > 0) {
+      const keyToDelete = Object.keys(sheetData[0]).find(k => k.toLowerCase().trim() === 'ca max fournisseur');
+      if (!keyToDelete) {
+        return sheetData;
+      }
+      return sheetData.map(row => {
+        const { [keyToDelete]: _, ...rest } = row;
+        return rest;
+      });
     }
-  }, [selectedYear, selectedMonth, sheetInfo, fetchDataForSheet, loadingSheets]);
+    return sheetData;
+  }, [sheetData, tabName]);
+
+  const years = useMemo(() => Object.keys(periods).sort().reverse(), [periods]);
+  const monthsForYear = useMemo(() => periods[selectedYear] || [], [periods, selectedYear]);
 
   const handleYearChange = (year: string) => {
     setSelectedYear(year);
-    const monthsForNewYear = sheetInfo
-      .filter(p => p.year === year)
-      .map(p => p.month);
-    
-    if (monthsForNewYear.length > 0) {
-      setSelectedMonth(monthsForNewYear[0]);
+    if (periods[year] && periods[year].length > 0) {
+      setSelectedMonth(periods[year][0]);
     } else {
       setSelectedMonth('');
     }
   };
 
-  const handleMonthChange = (month: string) => {
-    setSelectedMonth(month);
+  const renderContent = () => {
+    if (isLoading && sheetData.length === 0) {
+      return <div className="flex justify-center items-center h-64"><Spinner /></div>;
+    }
+    if (error) {
+      return <div className="text-center text-red-700 bg-red-50 border border-red-200 p-4 rounded-lg">{error}</div>;
+    }
+    if (processedSheetData.length > 0) {
+      return <SheetDisplay data={processedSheetData} />;
+    }
+    if (years.length > 0) {
+      return (
+        <div className="bg-white border border-slate-200 rounded-lg p-10 text-center text-slate-500">
+            Aucune donnée à afficher pour la période sélectionnée.
+        </div>
+      );
+    }
+    return (
+        <div className="bg-white border border-slate-200 rounded-lg p-10 text-center text-slate-500">
+            Aucune période disponible pour cette analyse.
+        </div>
+    );
   };
-  
-  const currentSheetName = sheetInfo.find(s => s.year === selectedYear && s.month === selectedMonth)?.originalName ?? '';
 
   return (
-    <>
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-          <SheetSelector
-            availableYears={availableYears}
-            monthsForSelectedYear={sheetInfo.filter(p => p.year === selectedYear).map(p => p.month)}
-            selectedYear={selectedYear}
-            selectedMonth={selectedMonth}
-            onYearChange={handleYearChange}
-            onMonthChange={handleMonthChange}
-            disabled={loadingSheets || sheetInfo.length === 0}
-            loading={loadingSheets}
-          />
-        </div>
-      </div>
-      
-      <div className="px-4 sm:px-6 lg:px-8 mt-8">
-        {error && (
-          <div className="max-w-3xl mx-auto bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded-lg text-center">
-            <p className="font-bold">Une erreur est survenue</p>
-            <p className="text-sm">{error}</p>
-          </div>
-        )}
-
-        {!error && (
-          <SheetDisplay
-            sheetId={sheetId}
-            data={sheetData}
-            loading={loadingData}
-            sheetName={currentSheetName}
-          />
-        )}
-      </div>
-    </>
+    <div className="space-y-6">
+      <SheetSelector
+        years={years}
+        monthsForSelectedYear={monthsForYear}
+        selectedYear={selectedYear}
+        onYearChange={handleYearChange}
+        selectedMonth={selectedMonth}
+        onMonthChange={setSelectedMonth}
+        isLoading={isLoading && sheetData.length === 0}
+      />
+      {renderContent()}
+    </div>
   );
 };
 

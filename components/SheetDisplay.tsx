@@ -1,419 +1,290 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import Spinner from './Spinner';
-import { SortIcon, ArrowUpIcon, ArrowDownIcon, SearchIcon } from './Icons';
+import React, { useState, useMemo, useEffect } from 'react';
+import { SearchIcon, SortAscIcon, SortDescIcon, SortIcon } from './Icons';
 
 interface SheetDisplayProps {
-  data: string[][] | null;
-  loading: boolean;
-  sheetName: string;
-  sheetId: string;
+  data: Record<string, string>[];
+}
+
+type SortDirection = 'ascending' | 'descending';
+
+interface SortConfig {
+  key: string;
+  direction: SortDirection;
 }
 
 const useMediaQuery = (query: string) => {
-    const [matches, setMatches] = useState(false);
-  
-    useEffect(() => {
-      const media = window.matchMedia(query);
-      if (media.matches !== matches) {
-        setMatches(media.matches);
-      }
-      
-      const listener = () => setMatches(media.matches);
-      window.addEventListener('resize', listener);
-      
-      return () => window.removeEventListener('resize', listener);
-    }, [matches, query]);
-  
-    return matches;
+  const [matches, setMatches] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    if (media.matches !== matches) {
+      setMatches(media.matches);
+    }
+    const listener = () => setMatches(media.matches);
+    window.addEventListener('resize', listener);
+    return () => window.removeEventListener('resize', listener);
+  }, [matches, query]);
+  return matches;
+};
+
+const formatValue = (value: string, header: string) => {
+    if (!value || value.trim() === '') return <span className="text-slate-400">-</span>;
+
+    if (header.toLowerCase().includes('évolution')) {
+        const num = parseFloat(value.replace(',', '.'));
+        if (isNaN(num)) return value;
+        const isPositive = num > 0;
+        return (
+            <span className={`flex items-center gap-1.5 font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                {isPositive ? '▲' : '▼'}
+                {value}
+            </span>
+        );
+    }
+    if (header.toLowerCase().includes('codein')) {
+        return value.padStart(7, '0');
+    }
+    if (header.includes('%') || header.toLowerCase().includes('part')) {
+        const num = parseFloat(value.replace(',', '.'));
+        if (isNaN(num)) return value;
+        return `${(num * 100).toFixed(2)}%`;
+    }
+    return value;
 };
 
 
-const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, loading, sheetName, sheetId }) => {
-  const [sortConfig, setSortConfig] = useState<{ key: number; direction: 'ascending' | 'descending' } | null>(null);
+const SheetDisplay: React.FC<SheetDisplayProps> = ({ data }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   const isMobile = useMediaQuery('(max-width: 768px)');
+  
+  const headers = useMemo(() => (data.length > 0 ? Object.keys(data[0]) : []), [data]);
 
-  useEffect(() => {
-    // Reset sort and search when sheet changes
-    setSortConfig(null);
-    setSearchTerm('');
-  }, [sheetName]);
+  const primaryKeyHeader = useMemo(() => {
+      return headers.find(h => ['nomenclature', 'fournisseur', 'famille', 'libelle1'].includes(h.toLowerCase()));
+  }, [headers]);
+
+  const reorderedHeaders = useMemo(() => {
+    if (!primaryKeyHeader) return headers;
+    return [primaryKeyHeader, ...headers.filter(h => h !== primaryKeyHeader)];
+  }, [headers, primaryKeyHeader]);
 
   const processedData = useMemo(() => {
-    if (!data || data.length < 1) {
-      return null;
+    let filteredData = [...data];
+
+    if (searchTerm) {
+      filteredData = filteredData.filter(row =>
+        Object.values(row).some(value =>
+          // FIX: Check if value is a string before calling toLowerCase
+          typeof value === 'string' && value.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      );
     }
 
-    let dataToProcess = data;
-    if (sheetId === '1BZD599SY1q3OoZWjlAPUYysMEbWgwsOH8IZrchDx374') {
-        const header = data[0];
-        const columnsToRemove = ['marge unitaire', 'ca max fournisseur', 'marge max fournisseur'];
-        const indicesToRemove = header.reduce((acc: number[], col, index) => {
-            if (columnsToRemove.includes(col.toLowerCase().trim())) {
-                acc.push(index);
-            }
-            return acc;
-        }, []);
+    if (sortConfig !== null) {
+      filteredData.sort((a, b) => {
+        const aVal = a[sortConfig.key];
+        const bVal = b[sortConfig.key];
+        const aNum = parseFloat(aVal?.replace(',', '.'));
+        const bNum = parseFloat(bVal?.replace(',', '.'));
 
-        if (indicesToRemove.length > 0) {
-            dataToProcess = data.map(row => 
-                row.filter((_, index) => !indicesToRemove.includes(index))
-            );
+        let comparison = 0;
+        if (aVal && bVal && !isNaN(aNum) && !isNaN(bNum)) {
+            comparison = aNum > bNum ? 1 : -1;
+        } else {
+            comparison = (aVal || '').localeCompare(bVal || '', 'fr', { numeric: true });
         }
+        
+        return sortConfig.direction === 'ascending' ? comparison : -comparison;
+      });
     }
 
-    const originalHeader = dataToProcess[0] || [];
-    let primaryColumnIndex: number | null = null;
-    const houdemontIndices: number[] = [];
-    const frouardIndices: number[] = [];
-    const otherIndices: number[] = [];
-    
-    let primaryColumnName = 'nomenclature'; // default
-    if (sheetId === '1BZD599SY1q3OoZWjlAPUYysMEbWgwsOH8IZrchDx374') {
-        primaryColumnName = 'libelle1';
-    } else if (sheetId === '1m92J7LubktT6U91gq9bFhNmuYZxY0yw9jgSFMze9lY4') {
-        primaryColumnName = 'fournisseur';
-    }
+    return filteredData;
+  }, [data, searchTerm, sortConfig]);
 
-    originalHeader.forEach((header, index) => {
-      const lowerHeader = header.toLowerCase().trim();
-      if (lowerHeader === primaryColumnName) {
-        primaryColumnIndex = index;
-      } else if (lowerHeader.includes('houdemont')) {
-        houdemontIndices.push(index);
-      } else if (lowerHeader.includes('frouard')) {
-        frouardIndices.push(index);
-      } else {
-        otherIndices.push(index);
-      }
-    });
-
-    const newOrder: number[] = [];
-    if (primaryColumnIndex !== null) {
-      newOrder.push(primaryColumnIndex);
-    }
-    const otherCols = [...houdemontIndices, ...frouardIndices, ...otherIndices].filter(i => i !== primaryColumnIndex);
-    newOrder.push(...otherCols);
-    
-    const reorderedData = dataToProcess.map(row => {
-      const fullRow = [...row];
-      while (fullRow.length < originalHeader.length) {
-          fullRow.push('');
-      }
-      return newOrder.map(index => fullRow[index] ?? '');
-    });
-
-    return {
-      reorderedData,
-      primaryColumnExists: primaryColumnIndex !== null,
-      houdemontCount: houdemontIndices.length,
-      frouardCount: frouardIndices.length,
-      otherCount: otherIndices.length,
-    };
-  }, [data, sheetId]);
-
-  const handleSortClick = (columnIndex: number) => {
-    let direction: 'ascending' | 'descending' = 'ascending';
-    if (sortConfig && sortConfig.key === columnIndex && sortConfig.direction === 'ascending') {
+  const requestSort = (key: string) => {
+    let direction: SortDirection = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
       direction = 'descending';
     }
-    setSortConfig({ key: columnIndex, direction });
+    setSortConfig({ key, direction });
   };
   
-  const filteredAndSortedRows = useMemo(() => {
-    const rowsToProcess = processedData?.reorderedData.slice(1) || [];
-    
-    const filteredRows = searchTerm
-      ? rowsToProcess.filter(row =>
-          row.some(cell =>
-            cell.toString().toLowerCase().includes(searchTerm.toLowerCase())
-          )
-        )
-      : rowsToProcess;
+  const columnGroups = useMemo(() => {
+    const groups: { name: string; colspan: number; keys: string[] }[] = [];
+    const groupedKeys = new Set<string>();
 
-    if (!sortConfig && !isMobile) {
-      return filteredRows;
+    const houdemontKeys = headers.filter(h => h.toLowerCase().includes('houdemont'));
+    if (houdemontKeys.length > 0) {
+      groups.push({ name: 'Houdemont', colspan: houdemontKeys.length, keys: houdemontKeys });
+      houdemontKeys.forEach(k => groupedKeys.add(k));
+    }
+    
+    const frouardKeys = headers.filter(h => h.toLowerCase().includes('frouard'));
+    if (frouardKeys.length > 0) {
+      groups.push({ name: 'Frouard', colspan: frouardKeys.length, keys: frouardKeys });
+      frouardKeys.forEach(k => groupedKeys.add(k));
     }
 
-    const dataToSort = [...filteredRows];
-    
-    if (sortConfig) {
-        dataToSort.sort((a, b) => {
-          const aVal = a[sortConfig.key];
-          const bVal = b[sortConfig.key];
-          
-          const isNumeric = (val: string) => !isNaN(parseFloat(val)) && isFinite(val as any);
-    
-          if (isNumeric(aVal) && isNumeric(bVal)) {
-            return sortConfig.direction === 'ascending' ? parseFloat(aVal) - parseFloat(bVal) : parseFloat(bVal) - parseFloat(aVal);
-          }
-    
-          const aValClean = aVal ? aVal.toString().trim() : '';
-          const bValClean = bVal ? bVal.toString().trim() : '';
-    
-          if (aValClean < bValClean) {
-            return sortConfig.direction === 'ascending' ? -1 : 1;
-          }
-          if (aValClean > bValClean) {
-            return sortConfig.direction === 'ascending' ? 1 : -1;
-          }
-          return 0;
-        });
+    const autresKeys = headers.filter(h => !groupedKeys.has(h) && (h.includes('CA') || h.includes('%') || h.includes('QTE')));
+    if (autresKeys.length > 0) {
+      groups.push({ name: 'Consolidé', colspan: autresKeys.length, keys: autresKeys });
+      autresKeys.forEach(k => groupedKeys.add(k));
     }
+    
+    return groups;
+  }, [headers]);
 
-    return dataToSort;
-  }, [processedData, sortConfig, isMobile, searchTerm]);
+  const getGroupHeaderStyle = (groupName: string) => {
+    switch (groupName.toLowerCase()) {
+      case 'houdemont':
+        return 'text-teal-800 border-teal-200 bg-teal-100/75';
+      case 'frouard':
+        return 'text-indigo-800 border-indigo-200 bg-indigo-100/75';
+      default:
+        return 'text-sky-800 border-sky-200 bg-sky-100/75';
+    }
+  };
+
+  const allGroupedKeysSet = useMemo(() => new Set(columnGroups.flatMap(g => g.keys)), [columnGroups]);
+  const nonGroupedHeaders = useMemo(() => reorderedHeaders.filter(h => !allGroupedKeysSet.has(h)), [reorderedHeaders, allGroupedKeysSet]);
+  const primaryKeyIsNonGrouped = primaryKeyHeader && nonGroupedHeaders.includes(primaryKeyHeader);
+  const otherNonGroupedHeaders = useMemo(() => {
+      if (primaryKeyIsNonGrouped) {
+          return nonGroupedHeaders.filter(h => h !== primaryKeyHeader);
+      }
+      return nonGroupedHeaders;
+  }, [nonGroupedHeaders, primaryKeyHeader, primaryKeyIsNonGrouped]);
 
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-        <Spinner />
-        <p className="mt-4 text-lg">Chargement des données pour "{sheetName}"...</p>
-      </div>
-    );
-  }
+  const displayedHeaders = useMemo(() => {
+    if (columnGroups.length > 0) {
+        const ordered: string[] = [];
+        if (primaryKeyIsNonGrouped && primaryKeyHeader) {
+            ordered.push(primaryKeyHeader);
+            ordered.push(...columnGroups.flatMap(g => g.keys));
+            ordered.push(...otherNonGroupedHeaders);
+        } else {
+            // Comportement précédent si pas de clé primaire ou si la clé primaire est groupée
+            ordered.push(...nonGroupedHeaders);
+            ordered.push(...columnGroups.flatMap(g => g.keys));
+        }
+        return ordered;
+    }
+    return reorderedHeaders;
+  }, [columnGroups, reorderedHeaders, primaryKeyHeader, primaryKeyIsNonGrouped, nonGroupedHeaders, otherNonGroupedHeaders]);
 
-  if (!processedData) {
-    return (
-      <div className="text-center h-64 flex items-center justify-center bg-white rounded-lg border border-gray-200">
-        <p className="text-gray-500">
-            {sheetName ? `Aucune donnée à afficher pour "${sheetName}".` : 'Veuillez sélectionner une feuille pour afficher les données.'}
-        </p>
-      </div>
-    );
-  }
 
-  const { reorderedData, primaryColumnExists, houdemontCount, frouardCount, otherCount } = processedData;
-  const header = reorderedData[0] || [];
-  
-  const searchBar = (
-    <div className="mb-6">
-      <label htmlFor="table-search" className="sr-only">Rechercher</label>
-      <div className="relative">
-        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-          <SearchIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
-        </div>
-        <input
-          type="search"
-          id="table-search"
-          className="w-full appearance-none bg-white border border-gray-300 text-gray-900 py-3 px-4 pl-11 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all duration-200"
-          placeholder="Rechercher dans les données..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          aria-label="Rechercher dans les données"
-        />
-      </div>
-    </div>
-  );
-
-  // Mobile Card View
   if (isMobile) {
     return (
-      <div>
-        {searchBar}
+      <div className="space-y-4">
+        <div className="relative">
+            <input
+            type="text"
+            placeholder="Rechercher..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full p-2 pl-10 border border-slate-300 rounded-md focus:ring-sky-500 focus:border-sky-500 bg-white"
+            />
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <SearchIcon className="h-5 w-5 text-slate-400" />
+            </div>
+        </div>
         <div className="space-y-4">
-          {filteredAndSortedRows.map((row, rowIndex) => (
-            <div key={rowIndex} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-              {row.map((cell, cellIndex) => {
-                const columnHeader = header[cellIndex]?.toLowerCase().trim();
-                let formattedCell = cell;
-
-                if (columnHeader === 'codein' && cell && /^\d+$/.test(cell)) {
-                  formattedCell = cell.padStart(6, '0');
-                } else if (
-                  sheetId === '1BZD599SY1q3OoZWjlAPUYysMEbWgwsOH8IZrchDx374' &&
-                  columnHeader === 'taux de marge %'
-                ) {
-                  const numValue = parseFloat(cell);
-                  if (!isNaN(numValue)) {
-                    formattedCell = `${(numValue * 100).toFixed(2)}%`;
-                  }
-                }
-
-                if (!header[cellIndex] || !formattedCell || formattedCell.trim() === '') {
-                  return null;
-                }
-
-                const isEvolutionColumn = header[cellIndex]?.trim().includes('Évolution');
-                let cellContent: React.ReactNode = formattedCell;
-
-                if (isEvolutionColumn) {
-                  const numValue = parseFloat(String(formattedCell).replace(/[\s%€$]/g, '').replace(',', '.'));
-                  if (!isNaN(numValue)) {
-                    if (numValue > 0) {
-                      cellContent = (
-                        <span className="flex items-center justify-end font-semibold text-green-600">
-                          <ArrowUpIcon className="h-4 w-4 mr-1 flex-shrink-0" />
-                          <span>{formattedCell}</span>
-                        </span>
-                      );
-                    } else if (numValue < 0) {
-                      cellContent = (
-                        <span className="flex items-center justify-end font-semibold text-red-600">
-                          <ArrowDownIcon className="h-4 w-4 mr-1 flex-shrink-0" />
-                          <span>{formattedCell}</span>
-                        </span>
-                      );
-                    }
-                  }
-                }
-
-                return (
-                  <div key={cellIndex} className={`flex justify-between items-start text-sm py-2 ${cellIndex < row.length -1 ? 'border-b border-gray-200' : ''}`}>
-                    <span className="font-medium text-gray-500 capitalize flex-shrink-0 pr-4">{header[cellIndex]}:</span>
-                    <div className="text-gray-900 text-right">{cellContent}</div>
-                  </div>
-                );
-              })}
+          {processedData.map((row, index) => (
+            <div key={index} className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm">
+              {displayedHeaders.map(header => (
+                <div key={header} className="grid grid-cols-2 gap-2 border-b border-slate-100 py-2.5 last:border-b-0">
+                  <span className="font-medium text-slate-600 text-sm break-words">{header}</span>
+                  <span className="text-right text-sm text-slate-800 break-words">{formatValue(row[header], header)}</span>
+                </div>
+              ))}
             </div>
           ))}
-          {filteredAndSortedRows.length === 0 && (
-            <div className="text-center py-10 text-gray-500 bg-white rounded-lg border border-gray-200">
-              {searchTerm 
-                ? `Aucun résultat trouvé pour "${searchTerm}".`
-                : `Aucune donnée disponible dans cette feuille.`
-              }
-            </div>
-          )}
         </div>
       </div>
     );
   }
 
-
-  // Desktop Table View
-  const showGroupHeaders = houdemontCount > 0 || frouardCount > 0;
   return (
-    <div>
-      {searchBar}
-      <div className="w-full overflow-x-auto bg-white rounded-lg border border-gray-200 shadow-sm">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50 sticky top-0 z-10">
-            {showGroupHeaders && (
-              <tr className="border-b border-gray-200">
-                {primaryColumnExists && (
-                  <th 
-                      colSpan={1} 
-                      scope="colgroup"
-                      className="px-6 py-2 text-center text-sm font-semibold text-gray-800 bg-gray-100"
-                  >
-                    Détails
-                  </th>
-                )}
-                {houdemontCount > 0 && (
-                  <th 
-                      colSpan={houdemontCount} 
-                      scope="colgroup"
-                      className="px-6 py-2 text-center text-sm font-semibold text-sky-900 bg-sky-100"
-                  >
-                    Houdemont
-                  </th>
-                )}
-                {frouardCount > 0 && (
-                  <th 
-                      colSpan={frouardCount}
-                      scope="colgroup"
-                      className="px-6 py-2 text-center text-sm font-semibold text-indigo-900 bg-indigo-100"
-                  >
-                    Frouard
-                  </th>
-                )}
-                {otherCount > 0 && (
-                  <th 
-                      colSpan={otherCount} 
-                      scope="colgroup"
-                      className="px-6 py-2 text-center text-sm font-semibold text-gray-800 bg-gray-100"
-                  >
-                    Autres
-                  </th>
-                )}
-              </tr>
+    <div className="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
+      <div className="relative mb-6">
+        <input
+          type="text"
+          placeholder="Rechercher dans le tableau..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          className="w-full sm:w-1/3 p-2 pl-10 border border-slate-300 rounded-md focus:ring-sky-500 focus:border-sky-500"
+        />
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <SearchIcon className="h-5 w-5 text-slate-400" />
+        </div>
+      </div>
+      <div className="overflow-auto max-h-[70vh]">
+        <table className="min-w-full divide-y divide-slate-200">
+          <thead className="bg-slate-50 sticky top-0 z-10">
+            {columnGroups.length > 0 ? (
+              <>
+                 <tr>
+                    {primaryKeyIsNonGrouped && primaryKeyHeader && (
+                        <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom">
+                           <button onClick={() => requestSort(primaryKeyHeader)} className="flex items-center gap-1.5 group">
+                             {primaryKeyHeader}
+                             <span className="opacity-30 group-hover:opacity-100 transition-opacity">
+                                {sortConfig?.key === primaryKeyHeader ? (sortConfig.direction === 'ascending' ? <SortAscIcon /> : <SortDescIcon />) : <SortIcon />}
+                             </span>
+                           </button>
+                        </th>
+                    )}
+                    {columnGroups.map(group => <th key={group.name} colSpan={group.colspan} className={`px-6 py-2 text-center text-sm font-bold uppercase border-b ${getGroupHeaderStyle(group.name)}`}>{group.name}</th>)}
+                    {otherNonGroupedHeaders.map(h => 
+                        <th key={h} rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom">
+                           <button onClick={() => requestSort(h)} className="flex items-center gap-1.5 group">
+                             {h}
+                             <span className="opacity-30 group-hover:opacity-100 transition-opacity">
+                                {sortConfig?.key === h ? (sortConfig.direction === 'ascending' ? <SortAscIcon /> : <SortDescIcon />) : <SortIcon />}
+                             </span>
+                           </button>
+                        </th>
+                    )}
+                </tr>
+                <tr>
+                    {columnGroups.flatMap(g => g.keys).map(header => (
+                        <th key={header} scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                          <button onClick={() => requestSort(header)} className="flex items-center gap-1.5 group">
+                            <span>{header}</span>
+                            <span className="opacity-30 group-hover:opacity-100 transition-opacity">
+                              {sortConfig?.key === header ? (sortConfig.direction === 'ascending' ? <SortAscIcon /> : <SortDescIcon />) : <SortIcon />}
+                            </span>
+                          </button>
+                        </th>
+                    ))}
+                </tr>
+              </>
+            ) : (
+                <tr>
+                    {reorderedHeaders.map(header => (
+                        <th key={header} scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                          <button onClick={() => requestSort(header)} className="flex items-center gap-1.5 group">
+                            <span>{header}</span>
+                            <span className="opacity-30 group-hover:opacity-100 transition-opacity">
+                              {sortConfig?.key === header ? (sortConfig.direction === 'ascending' ? <SortAscIcon /> : <SortDescIcon />) : <SortIcon />}
+                            </span>
+                          </button>
+                        </th>
+                    ))}
+                </tr>
             )}
-            <tr>
-              {header.map((col, index) => (
-                <th
-                  key={index}
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer group transition-colors duration-200 hover:bg-gray-100"
-                  onClick={() => handleSortClick(index)}
-                >
-                  <div className="flex items-center justify-between">
-                    <span>{col}</span>
-                    <SortIcon
-                      sortDirection={sortConfig?.key === index ? sortConfig.direction : 'none'}
-                      className={`h-4 w-4 ml-2 transition-all duration-200 ${
-                          sortConfig?.key === index 
-                          ? 'text-sky-600 opacity-100' 
-                          : 'text-gray-400 opacity-0 group-hover:opacity-100'
-                      }`}
-                    />
-                  </div>
-                </th>
-              ))}
-            </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredAndSortedRows.map((row, rowIndex) => (
-              <tr key={rowIndex} className="hover:bg-gray-50 transition-colors duration-150">
-                {row.map((cell, cellIndex) => {
-                  const columnHeader = header[cellIndex]?.toLowerCase().trim();
-                  let formattedCell = cell;
-
-                  if (columnHeader === 'codein' && cell && /^\d+$/.test(cell)) {
-                    formattedCell = cell.padStart(6, '0');
-                  } else if (
-                    sheetId === '1BZD599SY1q3OoZWjlAPUYysMEbWgwsOH8IZrchDx374' &&
-                    columnHeader === 'taux de marge %'
-                  ) {
-                    const numValue = parseFloat(cell);
-                    if (!isNaN(numValue)) {
-                      formattedCell = `${(numValue * 100).toFixed(2)}%`;
-                    }
-                  }
-
-                  return (
-                      <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                        {(() => {
-                          const isEvolutionColumn = header[cellIndex]?.trim().includes('Évolution');
-                          if (!isEvolutionColumn) return formattedCell;
-                          
-                          const numValue = parseFloat(String(formattedCell).replace(/[\s%€$]/g, '').replace(',', '.'));
-                          if (isNaN(numValue)) return formattedCell;
-
-                          if (numValue > 0) {
-                            return (
-                              <span className="flex items-center font-semibold text-green-600">
-                                <ArrowUpIcon className="h-4 w-4 mr-1.5 flex-shrink-0" />
-                                <span>{formattedCell}</span>
-                              </span>
-                            );
-                          }
-                          if (numValue < 0) {
-                            return (
-                              <span className="flex items-center font-semibold text-red-600">
-                                <ArrowDownIcon className="h-4 w-4 mr-1.5 flex-shrink-0" />
-                                <span>{formattedCell}</span>
-                              </span>
-                            );
-                          }
-                          return formattedCell;
-                        })()}
-                      </td>
-                  );
-                })}
+          <tbody className="bg-white divide-y divide-slate-200">
+            {processedData.map((row, index) => (
+              <tr key={index} className="hover:bg-slate-50/75 transition-colors">
+                {displayedHeaders.map(header => (
+                  <td key={header} className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                    {formatValue(row[header], header)}
+                  </td>
+                ))}
               </tr>
             ))}
-            {filteredAndSortedRows.length === 0 && (
-              <tr>
-                  <td colSpan={header.length} className="text-center py-10 text-gray-500">
-                    {searchTerm 
-                      ? `Aucun résultat trouvé pour "${searchTerm}".`
-                      : `Aucune donnée disponible dans cette feuille.`
-                    }
-                  </td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
