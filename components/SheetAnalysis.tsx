@@ -144,7 +144,10 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName }) => {
 
   const processedSheetData = useMemo(() => {
     if (tabName === 'Hit Parade' && sheetData.length > 0) {
-      const keyToDelete = Object.keys(sheetData[0]).find(k => k.toLowerCase().trim() === 'ca max fournisseur');
+      // Rend la recherche de la colonne plus robuste en normalisant les espaces multiples.
+      const keyToDelete = Object.keys(sheetData[0]).find(k => 
+        k.trim().replace(/\s+/g, ' ').toLowerCase() === 'ca max fournisseur'
+      );
       if (!keyToDelete) {
         return sheetData;
       }
