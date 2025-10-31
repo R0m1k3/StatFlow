@@ -1,14 +1,13 @@
 version: '3.8'
 
 services:
-  sales-analyzer-app:
-    build:
-      context: .
-      dockerfile: Dockerfile.txt
-    container_name: sales-analyzer-app
-    ports:
-      - "8081:8081"
+  sheet-viewer:
+    build: .
+    container_name: sheet-viewer-app
     restart: unless-stopped
+    ports:
+      # Changed host port to 8081 to avoid conflict
+      - "8081:80"
     networks:
       - nginx_default
 

@@ -1,5 +1,5 @@
 {
-  "name": "Analyseur de Ventes Google Sheets",
-  "description": "Une application web pour visualiser et analyser les statistiques de ventes à partir de documents Google Sheets, avec une interface à onglets, des sélecteurs de période, et un affichage de données interactif et responsive.",
+  "name": "Analyse Famille - Google Sheet Viewer",
+  "description": "An application to dynamically view and analyze sales statistics from different pages of a Google Sheet. Users can select a specific sheet from an index to display its data in a well-presented table.",
   "requestFramePermissions": []
 }

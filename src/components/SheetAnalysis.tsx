@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { getSheetNames, getSheetData } from '../services/googleSheetsService';
 import SheetSelector from './SheetSelector';
 import SheetDisplay from './SheetDisplay';
+import ColumnToggler from './ColumnToggler';
 
 interface SheetAnalysisProps {
   sheetId: string;
@@ -18,6 +19,7 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId }) => {
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
 
   const [sheetData, setSheetData] = useState<string[][] | null>(null);
   const [loadingSheets, setLoadingSheets] = useState<boolean>(true);
@@ -100,6 +102,16 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId }) => {
   useEffect(() => {
     fetchSheets();
   }, [fetchSheets]);
+  
+  useEffect(() => {
+    // Reset hidden columns when tab changes
+    if (sheetId === '1BZD599SY1q3OoZWjlAPUYysMEbWgwsOH8IZrchDx374') {
+      setHiddenColumns(['CA Max Fournisseur']);
+    } else {
+      setHiddenColumns([]);
+    }
+  }, [sheetId]);
+
 
   useEffect(() => {
     const currentSheet = sheetInfo.find(s => s.year === selectedYear && s.month === selectedMonth);
@@ -127,7 +139,19 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId }) => {
     setSelectedMonth(month);
   };
   
+  const handleToggleColumn = useCallback((columnName: string) => {
+    setHiddenColumns(prev => {
+      const isCurrentlyHidden = prev.some(c => c.toLowerCase() === columnName.toLowerCase());
+      if (isCurrentlyHidden) {
+        return prev.filter(c => c.toLowerCase() !== columnName.toLowerCase());
+      } else {
+        return [...prev, columnName];
+      }
+    });
+  }, []);
+  
   const currentSheetName = sheetInfo.find(s => s.year === selectedYear && s.month === selectedMonth)?.originalName ?? '';
+  const originalHeader = useMemo(() => sheetData?.[0] || [], [sheetData]);
 
   return (
     <>
@@ -143,6 +167,15 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId }) => {
             disabled={loadingSheets || sheetInfo.length === 0}
             loading={loadingSheets}
           />
+          {sheetId === '1BZD599SY1q3OoZWjlAPUYysMEbWgwsOH8IZrchDx374' && originalHeader.length > 0 && !loadingData && (
+            <div className="mt-4 flex justify-end">
+              <ColumnToggler
+                columns={originalHeader}
+                hiddenColumns={hiddenColumns}
+                onToggle={handleToggleColumn}
+              />
+            </div>
+          )}
         </div>
       </div>
       
@@ -160,6 +193,7 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId }) => {
             data={sheetData}
             loading={loadingData}
             sheetName={currentSheetName}
+            hiddenColumns={hiddenColumns}
           />
         )}
       </div>

@@ -24,9 +24,9 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 font-sans">
-      <div className="relative z-10">
+      <header className="relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <header className="text-center py-8">
+          <div className="text-center py-8">
             <div className="flex items-center justify-center gap-4">
               <AnalyticsIcon className="w-10 h-10 text-sky-600" />
               <h1 className="text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-indigo-600">
@@ -36,7 +36,7 @@ const App: React.FC = () => {
             <p className="mt-2 text-lg text-gray-600">
               Visualisation des statistiques de ventes
             </p>
-          </header>
+          </div>
 
            <div className="mb-8 border-b border-gray-200 flex justify-center">
             <nav className="-mb-px flex space-x-6" aria-label="Tabs">
@@ -56,17 +56,17 @@ const App: React.FC = () => {
             </nav>
           </div>
         </div>
+      </header>
 
-        <main>
-            {activeTabData && <SheetAnalysis key={activeTabData.sheetId} sheetId={activeTabData.sheetId} />}
-        </main>
-        
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <footer className="text-center py-8 text-gray-500 text-sm">
-            <p>Powered by React & Gemini</p>
-          </footer>
+      <main>
+          {activeTabData && <SheetAnalysis key={activeTabData.sheetId} sheetId={activeTabData.sheetId} />}
+      </main>
+      
+      <footer className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center py-8 text-gray-500 text-sm">
+          <p>Powered by React & Gemini</p>
         </div>
-      </div>
+      </footer>
     </div>
   );
 };

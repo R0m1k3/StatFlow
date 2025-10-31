@@ -7,6 +7,7 @@ interface SheetDisplayProps {
   loading: boolean;
   sheetName: string;
   sheetId: string;
+  hiddenColumns?: string[];
 }
 
 const useMediaQuery = (query: string) => {
@@ -28,7 +29,7 @@ const useMediaQuery = (query: string) => {
 };
 
 
-const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, loading, sheetName, sheetId }) => {
+const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, loading, sheetName, sheetId, hiddenColumns }) => {
   const [sortConfig, setSortConfig] = useState<{ key: number; direction: 'ascending' | 'descending' } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -45,9 +46,9 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, loading, sheetName, s
     }
 
     let dataToProcess = data;
-    if (sheetId === '1BZD599SY1q3OoZWjlAPUYysMEbWgwsOH8IZrchDx374') {
+    if (sheetId === '1BZD599SY1q3OoZWjlAPUYysMEbWgwsOH8IZrchDx374' && hiddenColumns && hiddenColumns.length > 0) {
         const header = data[0];
-        const columnsToRemove = ['marge unitaire', 'ca max fournisseur', 'marge max fournisseur'];
+        const columnsToRemove = hiddenColumns.map(c => c.toLowerCase().trim());
         const indicesToRemove = header.reduce((acc: number[], col, index) => {
             if (columnsToRemove.includes(col.toLowerCase().trim())) {
                 acc.push(index);
@@ -110,7 +111,7 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, loading, sheetName, s
       frouardCount: frouardIndices.length,
       otherCount: otherIndices.length,
     };
-  }, [data, sheetId]);
+  }, [data, sheetId, hiddenColumns]);
 
   const handleSortClick = (columnIndex: number) => {
     let direction: 'ascending' | 'descending' = 'ascending';
