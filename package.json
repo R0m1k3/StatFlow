@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "start": "serve -s dist -p 80"
+    "start": "serve -s dist -p 8081"
   },
   "dependencies": {
     "react": "^18.2.0",

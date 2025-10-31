@@ -6,8 +6,7 @@ services:
     container_name: sheet-viewer-app
     restart: unless-stopped
     ports:
-      # Changed host port to 8081 to avoid conflict
-      - "8081:80"
+      - "8081:8081"
     networks:
       - nginx_default
 
