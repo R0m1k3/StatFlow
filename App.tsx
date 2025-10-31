@@ -15,12 +15,9 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-slate-100 text-slate-800">
       <header className="bg-white border-b border-slate-200">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col items-center text-center gap-2">
+          <div className="flex items-center gap-4">
             <LogoIcon className="h-12 w-12 text-sky-600" />
-            <div>
-              <h1 className="text-3xl font-bold text-sky-600">Analyseur de Ventes</h1>
-              <p className="text-slate-500 mt-1">Visualisez les données de ventes depuis Google Sheets</p>
-            </div>
+            <h1 className="text-3xl font-bold text-sky-600">Analyseur de Ventes</h1>
           </div>
         </div>
       </header>
