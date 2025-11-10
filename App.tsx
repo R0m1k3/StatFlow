@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import SheetAnalysis from './components/SheetAnalysis';
+import Top10Analysis from './components/Top10Analysis';
 import { LogoIcon } from './components/Icons';
 
 const TABS = [
-  { name: 'Analyse Famille', sheetId: '1tFCeunQtTq-v3OTOM6EraSBLCUlgkhajSEjwdKfSQj4' },
-  { name: 'Hit Parade', sheetId: '1BZD599SY1q3OoZWjlAPUYysMEbWgwsOH8IZrchDx374' },
-  { name: 'Analyse Fournisseurs', sheetId: '1m92J7LubktT6U91gq9bFhNmuYZxY0yw9jgSFMze9lY4' },
+  { name: 'Analyse Famille', component: 'SheetAnalysis', sheetId: '1tFCeunQtTq-v3OTOM6EraSBLCUlgkhajSEjwdKfSQj4' },
+  { name: 'Hit Parade', component: 'SheetAnalysis', sheetId: '1BZD599SY1q3OoZWjlAPUYysMEbWgwsOH8IZrchDx374' },
+  { name: 'Analyse Fournisseurs', component: 'SheetAnalysis', sheetId: '1m92J7LubktT6U91gq9bFhNmuYZxY0yw9jgSFMze9lY4' },
+  { name: 'TOP 10', component: 'Top10Analysis', sheetId: '1s5poBaK7aWy1Wze2aMiEBWia1HWXIYVDHOYjj-nHvpU' },
 ];
 
 const App: React.FC = () => {
@@ -46,13 +48,26 @@ const App: React.FC = () => {
 
 
       <main className="p-4 sm:p-6 lg:p-8">
-        {TABS.map((tab) =>
-          activeTab === tab.name ? (
-            <div key={tab.sheetId}>
-               <SheetAnalysis sheetId={tab.sheetId} tabName={tab.name} />
-            </div>
-          ) : null
-        )}
+        {TABS.map((tab) => {
+          if (activeTab !== tab.name) return null;
+          
+          switch(tab.component) {
+            case 'SheetAnalysis':
+              return (
+                <div key={tab.sheetId}>
+                  <SheetAnalysis sheetId={tab.sheetId} tabName={tab.name} />
+                </div>
+              );
+            case 'Top10Analysis':
+              return (
+                <div key={tab.sheetId}>
+                  <Top10Analysis sheetId={tab.sheetId} />
+                </div>
+              );
+            default:
+              return null;
+          }
+        })}
       </main>
     </div>
   );
