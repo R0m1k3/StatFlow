@@ -4,7 +4,7 @@ import { LogoIcon } from './components/Icons';
 
 const TABS = [
   { name: 'Analyse Famille', component: 'SheetAnalysis', sheetId: '1tFCeunQtTq-v3OTOM6EraSBLCUlgkhajSEjwdKfSQj4' },
-  { name: 'Hit Parade', component: 'SheetAnalysis', sheetId: '1BZD599SY1q3OoZWjlAPUYysMEbWgwsOH8IZrchDx374' },
+  { name: 'Hit Parade', component: 'SheetAnalysis', sheetId: '10OyLQE6xj4chSW2uF-xM-CEpvs3NPkb4' },
   { name: 'Analyse Fournisseurs', component: 'SheetAnalysis', sheetId: '1m92J7LubktT6U91gq9bFhNmuYZxY0yw9jgSFMze9lY4' },
 ];
 
@@ -47,12 +47,14 @@ const App: React.FC = () => {
 
       <main className="p-4 sm:p-6 lg:p-8">
         {TABS.map((tab) => {
-          if (activeTab !== tab.name) return null;
-          
           if (tab.component === 'SheetAnalysis') {
             return (
-              <div key={tab.sheetId}>
-                <SheetAnalysis sheetId={tab.sheetId} tabName={tab.name} />
+              <div key={tab.sheetId} className={activeTab === tab.name ? 'block' : 'hidden'}>
+                <SheetAnalysis 
+                  sheetId={tab.sheetId} 
+                  tabName={tab.name} 
+                  isActive={activeTab === tab.name}
+                />
               </div>
             );
           }

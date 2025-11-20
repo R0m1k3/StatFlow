@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getSheetNames, getSheetData } from '../services/googleSheetsService';
 import SheetSelector from './SheetSelector';
@@ -7,6 +8,7 @@ import Spinner from './Spinner';
 interface SheetAnalysisProps {
   sheetId: string;
   tabName: string;
+  isActive: boolean;
 }
 
 interface PeriodData {
@@ -15,7 +17,7 @@ interface PeriodData {
 
 type DateFormat = 'YYYY-MM' | 'YYYYMM';
 
-const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName }) => {
+const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName, isActive }) => {
   const [periods, setPeriods] = useState<PeriodData>({});
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
@@ -23,10 +25,17 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dateFormat, setDateFormat] = useState<DateFormat>('YYYY-MM');
-
+  
+  const hasInitialized = useRef(false);
   const dataCache = useRef<Record<string, Record<string, string>[]>>({});
 
   useEffect(() => {
+    // Only fetch if the tab is active and we haven't initialized yet
+    if (!isActive) return;
+    if (hasInitialized.current) return;
+
+    hasInitialized.current = true;
+
     const fetchSheetIndex = async () => {
       setIsLoading(true);
       setError(null);
@@ -44,7 +53,9 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName }) => {
         
         if (!firstValidName) {
             if (names.length > 0) {
-                 setError("Aucune période valide (format AAAA-MM ou AAAAMM) n'a été trouvée dans la feuille 'index'.");
+                 setError("Aucune période valide (format AAAA-MM ou AAAAMM) n'a été trouvée.");
+            } else {
+                 setError("Impossible de lire l'index ou aucune feuille n'est disponible.");
             }
             setIsLoading(false);
             return;
@@ -81,7 +92,9 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName }) => {
 
         setPeriods(newPeriods);
 
-        const latestYear = Object.keys(newPeriods).sort().pop();
+        // Default selection: try to select the first available month, but prefer not to select future months if we generated the index.
+        // However, since we don't know which exist, simply selecting the latest is standard.
+        const latestYear = Object.keys(newPeriods).sort().reverse()[0];
         if (latestYear) {
           setSelectedYear(latestYear);
           const latestMonth = newPeriods[latestYear]?.[0];
@@ -93,7 +106,6 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName }) => {
         } else {
             setIsLoading(false);
         }
-        console.log(`[SheetAnalysis] [${sheetId}] Index récupéré. Périodes:`, newPeriods);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Une erreur est survenue.';
         console.error(`[SheetAnalysis] [${sheetId}] Erreur index:`, err);
@@ -103,7 +115,7 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName }) => {
     };
 
     fetchSheetIndex();
-  }, [sheetId]);
+  }, [sheetId, isActive]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -124,15 +136,19 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName }) => {
       setIsLoading(true);
       setError(null);
       try {
-        console.log(`[SheetAnalysis] [${sheetId}] Démarrage de la récupération des données pour: "${sheetName}"`);
         const data = await getSheetData(sheetId, sheetName);
         dataCache.current[sheetName] = data;
         setSheetData(data);
-        console.log(`[SheetAnalysis] [${sheetId}] Données récupérées pour: "${sheetName}".`);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Une erreur est survenue.';
-        console.error(`[SheetAnalysis] [${sheetId}] Erreur données pour "${sheetName}":`, err);
-        setError(errorMessage);
+        
+        // Handle 404 gracefully
+        if (errorMessage.includes('404')) {
+             setError("Données non disponibles pour cette période.");
+        } else {
+             console.error(`[SheetAnalysis] [${sheetId}] Erreur données pour "${sheetName}":`, err);
+             setError(errorMessage);
+        }
         setSheetData([]);
       } finally {
         setIsLoading(false);
@@ -144,7 +160,6 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName }) => {
 
   const processedSheetData = useMemo(() => {
     if (tabName === 'Hit Parade' && sheetData.length > 0) {
-      // Rend la recherche de la colonne plus robuste en normalisant les espaces multiples.
       const keyToDelete = Object.keys(sheetData[0]).find(k => 
         k.trim().replace(/\s+/g, ' ').toLowerCase() === 'ca max fournisseur'
       );
@@ -176,7 +191,12 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName }) => {
       return <div className="flex justify-center items-center h-64"><Spinner /></div>;
     }
     if (error) {
-      return <div className="text-center text-red-700 bg-red-50 border border-red-200 p-4 rounded-lg">{error}</div>;
+      return (
+        <div className="flex flex-col items-center justify-center p-10 bg-white border border-slate-200 rounded-lg">
+            <p className="text-slate-500 mb-2">{error}</p>
+            <p className="text-sm text-slate-400">Veuillez sélectionner une autre période.</p>
+        </div>
+      );
     }
     if (processedSheetData.length > 0) {
       return <SheetDisplay data={processedSheetData} />;
@@ -190,13 +210,13 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName }) => {
     }
     return (
         <div className="bg-white border border-slate-200 rounded-lg p-10 text-center text-slate-500">
-            Aucune période disponible pour cette analyse.
+            {isLoading ? <Spinner /> : "Initialisation de l'analyse..."}
         </div>
     );
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
       <SheetSelector
         years={years}
         monthsForSelectedYear={monthsForYear}
