@@ -1,9 +1,38 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { URL } from 'url';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://docs.google.com',
+        changeOrigin: true,
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        },
+        rewrite: (path) => {
+          // path is like /api/sheets/SHEET_ID?sheet=SHEET_NAME
+          const localUrl = new URL(path, 'http://localhost');
+          const pathParts = localUrl.pathname.split('/'); // ['', 'api', 'sheets', 'SHEET_ID']
+          const sheetId = pathParts[3];
+          const sheetName = localUrl.searchParams.get('sheet');
+          
+          if (sheetId) {
+            // Use gviz/tq endpoint for better reliability
+            let dest = `/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+            if (sheetName) {
+                dest += `&sheet=${encodeURIComponent(sheetName)}`;
+            }
+            return dest;
+          }
+          return path.replace('/api', '');
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({
@@ -35,10 +64,10 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg}'],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/docs\.google\.com\/spreadsheets\/d\/.*/i,
+            urlPattern: /^\/api\/.*/i,
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'google-sheets-data-cache',
+              cacheName: 'google-sheets-api-cache',
               expiration: {
                 maxEntries: 100,
                 maxAgeSeconds: 60 * 60 * 24 * 7, // 7 jours

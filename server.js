@@ -13,6 +13,45 @@ const __dirname = path.dirname(__filename);
 // Utiliser morgan pour la journalisation. Le format 'combined' fournit des logs détaillés.
 app.use(morgan('combined'));
 
+// Proxy API pour contourner les problèmes de CORS avec Google Sheets
+app.get('/api/sheets/:sheetId', async (req, res) => {
+  const { sheetId } = req.params;
+  const { sheet } = req.query;
+
+  // Utilisation de l'API Google Visualization (gviz) qui est souvent plus fiable pour l'export CSV
+  // que le endpoint /export standard.
+  let googleSheetsUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+  
+  if (sheet) {
+    googleSheetsUrl += `&sheet=${encodeURIComponent(sheet)}`;
+  }
+
+  try {
+    console.log(`[PROXY] Tentative de fetch : ${googleSheetsUrl}`);
+    const fetchResponse = await fetch(googleSheetsUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/csv;charset=UTF-8'
+      }
+    });
+
+    if (!fetchResponse.ok) {
+      const errorText = await fetchResponse.text();
+      console.error(`[PROXY] Erreur de Google Sheets. Statut : ${fetchResponse.status}. Réponse : ${errorText}`);
+      return res.status(fetchResponse.status).send(`Erreur Google Sheets (${fetchResponse.status})`);
+    }
+
+    const csvData = await fetchResponse.text();
+    res.header('Content-Type', 'text/csv; charset=utf-8');
+    res.send(csvData);
+    console.log(`[PROXY] Succès pour la feuille : ${sheet || 'défaut'}`);
+  } catch (error) {
+    console.error('[PROXY] Erreur inattendue du proxy :', error);
+    res.status(500).send({ error: 'Erreur interne du serveur proxy.' });
+  }
+});
+
+
 // Servir les fichiers statiques depuis le répertoire 'dist'
 app.use(express.static(path.join(__dirname, 'dist')));
 
