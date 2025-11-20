@@ -1,6 +1,4 @@
 
-const BASE_URL = 'https://docs.google.com/spreadsheets/d/';
-
 const parseCSV = (text: string): Record<string, string>[] => {
   const lines = text.split(/\r\n|\n/);
   if (lines.length < 2) return [];
@@ -19,33 +17,50 @@ const parseCSV = (text: string): Record<string, string>[] => {
 };
 
 export const getSheetNames = async (sheetId: string): Promise<string[]> => {
-  const url = `${BASE_URL}${sheetId}/gviz/tq?tqx=out:csv&sheet=index`;
-  console.log(`[LOG] Tentative de récupération de l'index des feuilles depuis : ${url}`);
+  // Tentative 1 : Récupérer la feuille nommée "index"
+  let url = `/api/sheets/${sheetId}?sheet=index`;
+  console.log(`[LOG] Tentative de récupération de l'index des feuilles via le proxy : ${url}`);
+  
   try {
-    const response = await fetch(url);
+    let response = await fetch(url);
+    
+    // Si la feuille "index" n'existe pas (400 ou 404), on tente de récupérer la feuille par défaut
     if (!response.ok) {
-      const errorMsg = `Impossible de récupérer la liste des feuilles (index). Statut HTTP : ${response.status}. Vérifiez l'ID de la feuille, l'existence de la feuille 'index' et les permissions de partage.`;
+      console.warn(`[WARN] La feuille 'index' n'est pas accessible (Statut ${response.status}). Tentative de récupération de la feuille par défaut...`);
+      url = `/api/sheets/${sheetId}`; // Pas de paramètre sheet, le serveur chargera la première feuille
+      response = await fetch(url);
+    }
+
+    if (!response.ok) {
+      const errorMsg = `Impossible de récupérer la liste des feuilles via le proxy. Statut HTTP : ${response.status}. Vérifiez l'ID de la feuille et qu'elle est bien partagée ("Tous les utilisateurs disposant du lien").`;
       console.error(`[ERROR] ${errorMsg}`);
       throw new Error(errorMsg);
     }
+    
     const csvText = await response.text();
     const parsed = parseCSV(csvText);
     console.log(`[SUCCESS] Index des feuilles récupéré et parsé pour ${sheetId}.`);
+    
+    // On suppose que la première colonne contient les noms des feuilles
+    // Le format gviz peut parfois renvoyer des données vides si la feuille est vide, d'où le filter
     return parsed.map(row => Object.values(row)[0]).filter(Boolean);
   } catch (error) {
-    const errorMsg = `Erreur réseau ou inattendue lors de la récupération de l'index pour ${sheetId}.`;
+    const errorMsg = `Erreur lors de la récupération de l'index (${sheetId}).`;
     console.error(`[FATAL] ${errorMsg}`, error);
-    throw new Error(`${errorMsg} Voir la console pour plus de détails.`);
+    if (error instanceof Error && error.message.includes('Statut HTTP')) {
+      throw error;
+    }
+    throw new Error(`${errorMsg} Assurez-vous que le serveur est en cours d'exécution et que le proxy est correctement configuré.`);
   }
 };
 
 export const getSheetData = async (sheetId: string, sheetName: string): Promise<Record<string, string>[]> => {
-  const url = `${BASE_URL}${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
-  console.log(`[LOG] Tentative de récupération des données pour la feuille "${sheetName}" depuis : ${url}`);
+  const url = `/api/sheets/${sheetId}?sheet=${encodeURIComponent(sheetName)}`;
+  console.log(`[LOG] Tentative de récupération des données pour la feuille "${sheetName}" via le proxy : ${url}`);
   try {
     const response = await fetch(url);
     if (!response.ok) {
-      const errorMsg = `Impossible de récupérer les données pour la feuille "${sheetName}". Statut HTTP : ${response.status}.`;
+      const errorMsg = `Impossible de récupérer les données pour la feuille "${sheetName}" via le proxy. Statut HTTP : ${response.status}.`;
       console.error(`[ERROR] ${errorMsg}`);
       throw new Error(errorMsg);
     }
@@ -53,8 +68,11 @@ export const getSheetData = async (sheetId: string, sheetName: string): Promise<
     console.log(`[SUCCESS] Données pour la feuille "${sheetName}" récupérées et parsées.`);
     return parseCSV(csvText);
   } catch (error) {
-    const errorMsg = `Erreur réseau ou inattendue lors de la récupération des données de la feuille "${sheetName}".`;
+    const errorMsg = `Erreur réseau ou inattendue lors de la communication avec le proxy pour récupérer les données de la feuille "${sheetName}".`;
     console.error(`[FATAL] ${errorMsg}`, error);
+    if (error instanceof Error && error.message.includes('Statut HTTP')) {
+        throw error;
+    }
     throw new Error(`${errorMsg} Voir la console pour plus de détails.`);
   }
 };
