@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
-import { URL } from 'url';
+
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -11,7 +11,7 @@ export default defineConfig({
         target: 'https://docs.google.com',
         changeOrigin: true,
         headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         },
         rewrite: (path) => {
           // path is like /api/sheets/SHEET_ID?sheet=SHEET_NAME
@@ -19,12 +19,12 @@ export default defineConfig({
           const pathParts = localUrl.pathname.split('/'); // ['', 'api', 'sheets', 'SHEET_ID']
           const sheetId = pathParts[3];
           const sheetName = localUrl.searchParams.get('sheet');
-          
+
           if (sheetId) {
             // Use gviz/tq endpoint for better reliability
             let dest = `/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
             if (sheetName) {
-                dest += `&sheet=${encodeURIComponent(sheetName)}`;
+              dest += `&sheet=${encodeURIComponent(sheetName)}`;
             }
             return dest;
           }
