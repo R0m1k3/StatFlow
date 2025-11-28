@@ -6,7 +6,7 @@ import { LogoIcon } from './components/Icons';
 const TABS = [
   { name: 'Analyse Famille', component: 'SheetAnalysis', sheetId: '1tFCeunQtTq-v3OTOM6EraSBLCUlgkhajSEjwdKfSQj4' },
   { name: 'Top 10', component: 'Top10Analysis', sheetId: '1s5poBaK7aWy1Wze2aMiEBWia1HWXIYVDHOYjj-nHvpU' },
-  { name: 'Hit Parade', component: 'SheetAnalysis', sheetId: '10OyLQE6xj4chSW2uF-xM-CEpvs3NPkb4' },
+  { name: 'Hit Parade', component: 'SheetAnalysis', sheetId: '1BZD599SY1q3OoZWjlAPUYysMEbWgwsOH8IZrchDx374' },
   { name: 'Analyse Fournisseurs', component: 'SheetAnalysis', sheetId: '1m92J7LubktT6U91gq9bFhNmuYZxY0yw9jgSFMze9lY4' },
 ];
 
@@ -26,23 +26,22 @@ const App: React.FC = () => {
 
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <nav className="container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Onglets d'analyse">
-            <div className="flex justify-center gap-2 sm:gap-4" role="tablist">
-              {TABS.map((tab) => (
-                <button
-                  key={tab.name}
-                  onClick={() => setActiveTab(tab.name)}
-                  className={`py-3 px-3 sm:px-4 whitespace-nowrap text-sm sm:text-base font-medium rounded-t-md transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 ${
-                    activeTab === tab.name
-                      ? 'text-sky-700 border-b-2 border-sky-500'
-                      : 'text-slate-500 hover:text-sky-600 hover:bg-slate-50/50 border-b-2 border-transparent'
+          <div className="flex justify-center gap-2 sm:gap-4" role="tablist">
+            {TABS.map((tab) => (
+              <button
+                key={tab.name}
+                onClick={() => setActiveTab(tab.name)}
+                className={`py-3 px-3 sm:px-4 whitespace-nowrap text-sm sm:text-base font-medium rounded-t-md transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 ${activeTab === tab.name
+                  ? 'text-sky-700 border-b-2 border-sky-500'
+                  : 'text-slate-500 hover:text-sky-600 hover:bg-slate-50/50 border-b-2 border-transparent'
                   }`}
-                  role="tab"
-                  aria-selected={activeTab === tab.name}
-                >
-                  {tab.name}
-                </button>
-              ))}
-            </div>
+                role="tab"
+                aria-selected={activeTab === tab.name}
+              >
+                {tab.name}
+              </button>
+            ))}
+          </div>
         </nav>
       </div>
 
@@ -55,20 +54,20 @@ const App: React.FC = () => {
           if (tab.component === 'SheetAnalysis') {
             return (
               <div key={tab.sheetId} className="animate-in fade-in duration-300">
-                <SheetAnalysis 
-                  sheetId={tab.sheetId} 
-                  tabName={tab.name} 
+                <SheetAnalysis
+                  sheetId={tab.sheetId}
+                  tabName={tab.name}
                   isActive={isActive}
                 />
               </div>
             );
           }
           if (tab.component === 'Top10Analysis') {
-             return (
-               <div key={tab.sheetId} className="animate-in fade-in duration-300">
-                 <Top10Analysis sheetId={tab.sheetId} />
-               </div>
-             );
+            return (
+              <div key={tab.sheetId} className="animate-in fade-in duration-300">
+                <Top10Analysis sheetId={tab.sheetId} />
+              </div>
+            );
           }
           return null;
         })}
