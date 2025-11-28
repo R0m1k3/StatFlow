@@ -6,7 +6,7 @@ export const parseCSVToMatrix = (text: string): string[][] => {
   let currentRow: string[] = [];
   let currentCell = '';
   let inQuotes = false;
-  
+
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
     const nextChar = text[i + 1];
@@ -16,7 +16,7 @@ export const parseCSVToMatrix = (text: string): string[][] => {
         if (nextChar === '"') {
           // Double quote inside quotes escapes the quote
           currentCell += '"';
-          i++; 
+          i++;
         } else {
           inQuotes = false;
         }
@@ -43,7 +43,7 @@ export const parseCSVToMatrix = (text: string): string[][] => {
       }
     }
   }
-  
+
   // Push last cell/row if exists
   if (currentCell || currentRow.length > 0) {
     currentRow.push(currentCell);
@@ -155,10 +155,10 @@ Rang,Code,Libellé,Fournisseur,CA,Marge
 2,2001,Pegasus,Nike,6000,2000`;
 
 const getMockDataForId = (sheetId: string): string => {
-    if (sheetId === '1tFCeunQtTq-v3OTOM6EraSBLCUlgkhajSEjwdKfSQj4') return MOCK_DATA_FAMILLE;
-    if (sheetId === '10OyLQE6xj4chSW2uF-xM-CEpvs3NPkb4') return MOCK_DATA_HIT_PARADE;
-    if (sheetId === '1m92J7LubktT6U91gq9bFhNmuYZxY0yw9jgSFMze9lY4') return MOCK_DATA_FOURNISSEURS;
-    return MOCK_DATA_FAMILLE;
+  if (sheetId === '1tFCeunQtTq-v3OTOM6EraSBLCUlgkhajSEjwdKfSQj4') return MOCK_DATA_FAMILLE;
+  if (sheetId === '10OyLQE6xj4chSW2uF-xM-CEpvs3NPkb4') return MOCK_DATA_HIT_PARADE;
+  if (sheetId === '1m92J7LubktT6U91gq9bFhNmuYZxY0yw9jgSFMze9lY4') return MOCK_DATA_FOURNISSEURS;
+  return MOCK_DATA_FAMILLE;
 };
 
 // Generate a list of recent periods (Current month back to 2023)
@@ -195,23 +195,23 @@ export const getSheetNames = async (sheetId: string): Promise<string[]> => {
   // Strategy 2: Try to fetch the 'index' sheet.
   let url = `/api/sheets/${sheetId}?sheet=index`;
   console.log(`[LOG] Tentative de récupération de l'index des feuilles via le proxy : ${url}`);
-  
+
   try {
     const response = await fetch(url);
-    
+
     if (response.ok) {
       const csvText = await response.text();
       const parsed = parseCSV(csvText);
       const names = parsed.map(row => Object.values(row)[0]).filter(Boolean);
-      
+
       // Validate that it looks like an index (contains dates)
       const hasDates = names.some(n => /^\d{4}[-]?\d{2}$/.test(n));
       if (hasDates) {
-         console.log(`[SUCCESS] Index des feuilles récupéré et parsé pour ${sheetId}.`);
-         return names;
+        console.log(`[SUCCESS] Index des feuilles récupéré et parsé pour ${sheetId}.`);
+        return names;
       }
     }
-    
+
     // If 'index' fetch failed or returned non-date data, fall back to generated periods
     // instead of trying to fetch the default sheet (which we know contains data, not an index).
     console.warn(`[WARN] Index introuvable ou invalide pour ${sheetId}. Utilisation de l'index virtuel.`);
@@ -233,18 +233,40 @@ export const getSheetData = async (sheetId: string, sheetName: string): Promise<
     }
     const csvText = await response.text();
     console.log(`[SUCCESS] Données pour la feuille "${sheetName}" récupérées et parsées.`);
-    return parseCSV(csvText);
+    const data = parseCSV(csvText);
+
+    // VALIDATION: Google Sheets returns the first sheet (index) if the requested sheet is not found.
+    // We must detect this case to avoid displaying the index instead of the data.
+    if (sheetName !== 'index' && data.length > 0) {
+      const firstRow = data[0];
+      const keys = Object.keys(firstRow);
+
+      // Heuristic: If we have only 1 column and it looks like the index (header "Période" or values are dates)
+      const isIndex = keys.length === 1 && (
+        keys[0].toLowerCase().includes('période') ||
+        keys[0].toLowerCase().includes('period') ||
+        /^\d{4}[-]?\d{2}$/.test(Object.values(firstRow)[0])
+      );
+
+      if (isIndex) {
+        console.warn(`[WARN] La feuille retournée semble être l'index au lieu de "${sheetName}". Génération d'une erreur 404.`);
+        throw new Error("404 - Feuille introuvable (Index retourné par défaut)");
+      }
+    }
+
+    console.log(`[SUCCESS] Données pour la feuille "${sheetName}" récupérées et parsées.`);
+    return data;
   } catch (error) {
     // Only log error if it's not a simple 404 (which might just mean data for that month isn't there yet)
     const is404 = error instanceof Error && error.message.includes('404');
-    
+
     // FALLBACK LOGIC: If we get a 404 for a known sheet, return mock data
     if (is404 || error) {
-         console.warn(`[WARN] Échec de la récupération des données pour ${sheetName}. Passage en mode DÉGRADÉ (Mock Data).`);
-         const mockCsv = getMockDataForId(sheetId);
-         return parseCSV(mockCsv);
+      console.warn(`[WARN] Échec de la récupération des données pour ${sheetName}. Passage en mode DÉGRADÉ (Mock Data).`);
+      const mockCsv = getMockDataForId(sheetId);
+      return parseCSV(mockCsv);
     }
-    
+
     throw error;
   }
 };
@@ -252,24 +274,24 @@ export const getSheetData = async (sheetId: string, sheetName: string): Promise<
 // Récupère les données brutes (matrice string[][]) sans essayer de parser les headers.
 // Utile pour les feuilles contenant plusieurs tableaux (comme le Top 10).
 export const getRawSheetData = async (sheetId: string, sheetName: string): Promise<string[][]> => {
-    const url = `/api/sheets/${sheetId}?sheet=${encodeURIComponent(sheetName)}`;
-    console.log(`[LOG] Tentative de récupération des données BRUTES pour "${sheetName}"`);
-    
-    try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`Statut HTTP : ${response.status}`);
-        const csvText = await response.text();
-        return parseCSVToMatrix(csvText);
-    } catch (error) {
-        console.warn(`[WARN] Echec données brutes pour ${sheetName} (${sheetId}). Tentative Mock Data.`);
-        
-        // Fallback spécifique pour Top 10 (Multi-tableaux)
-        if (sheetId === '1s5poBaK7aWy1Wze2aMiEBWia1HWXIYVDHOYjj-nHvpU') {
-             const normalizedName = sheetName.trim().toLowerCase();
-             if (normalizedName.includes('houdemont')) return parseCSVToMatrix(MOCK_DATA_TOP10_HOUDEMONT);
-             if (normalizedName.includes('frouard')) return parseCSVToMatrix(MOCK_DATA_TOP10_FROUARD);
-        }
-        
-        throw error;
+  const url = `/api/sheets/${sheetId}?sheet=${encodeURIComponent(sheetName)}`;
+  console.log(`[LOG] Tentative de récupération des données BRUTES pour "${sheetName}"`);
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Statut HTTP : ${response.status}`);
+    const csvText = await response.text();
+    return parseCSVToMatrix(csvText);
+  } catch (error) {
+    console.warn(`[WARN] Echec données brutes pour ${sheetName} (${sheetId}). Tentative Mock Data.`);
+
+    // Fallback spécifique pour Top 10 (Multi-tableaux)
+    if (sheetId === '1s5poBaK7aWy1Wze2aMiEBWia1HWXIYVDHOYjj-nHvpU') {
+      const normalizedName = sheetName.trim().toLowerCase();
+      if (normalizedName.includes('houdemont')) return parseCSVToMatrix(MOCK_DATA_TOP10_HOUDEMONT);
+      if (normalizedName.includes('frouard')) return parseCSVToMatrix(MOCK_DATA_TOP10_FROUARD);
     }
+
+    throw error;
+  }
 };
