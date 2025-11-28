@@ -57,6 +57,8 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
         setPeriod(foundPeriod);
 
         console.log('[DEBUG TOP10] Total rows received:', rawData.length);
+        console.log('[DEBUG TOP10] First 10 rows:', rawData.slice(0, 10));
+        console.log('[DEBUG TOP10] Row 20:', rawData[20]);
 
         // Parse ALL nomenclatures with their qty and amount tables
         const parsedGroups: NomenclatureGroup[] = [];
@@ -76,6 +78,7 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
             if (currentGroup) parsedGroups.push(currentGroup);
             currentGroup = { name: firstCell };
             currentTableType = null;
+            console.log('[DEBUG TOP10] Found nomenclature:', firstCell);
             continue;
           }
 
@@ -83,9 +86,11 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
           if (fullRowString.includes('top 10')) {
             if (fullRowString.includes('quantité') || fullRowString.includes('quant')) {
               currentTableType = 'qty';
+              console.log('[DEBUG TOP10] Detected Quantité table');
               continue;
             } else if (fullRowString.includes('montant')) {
               currentTableType = 'amount';
+              console.log('[DEBUG TOP10] Detected Montant table');
               continue;
             }
           }
@@ -98,6 +103,7 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
             } else if (currentGroup && currentTableType === 'amount') {
               currentGroup.amountTable = { headers: currentHeaders, rows: [] };
             }
+            console.log('[DEBUG TOP10] Headers:', currentHeaders);
             continue;
           }
 
@@ -116,6 +122,10 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
         if (currentGroup) parsedGroups.push(currentGroup);
 
         console.log('[DEBUG TOP10] Parsed groups:', parsedGroups.length);
+        parsedGroups.forEach((g, idx) => {
+          console.log(`[DEBUG TOP10] Group ${idx}: ${g.name}, Qty rows: ${g.qtyTable?.rows.length || 0}, Amt rows: ${g.amountTable?.rows.length || 0}`);
+        });
+
         setGroups(parsedGroups);
 
       } catch (err) {
