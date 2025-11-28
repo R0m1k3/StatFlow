@@ -18,7 +18,7 @@ interface NomenclatureGroup {
 }
 
 // Stores defined by the sheets in the provided Google Doc
-const STORES = ['Houdemont', 'Frouard'];
+const STORES = ['HOUDEMONT', 'Nancy'];
 
 const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
   const [selectedStore, setSelectedStore] = useState(STORES[0]);
@@ -45,7 +45,7 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
         // 1. Extract Period (First line usually)
         let foundPeriod = '';
         if (rawData[0] && rawData[0].length > 0) {
-            foundPeriod = rawData[0][0];
+          foundPeriod = rawData[0][0];
         }
         setPeriod(foundPeriod);
 
@@ -60,8 +60,8 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
           const row = rawData[i];
           // Skip totally empty rows
           if (row.every(c => !c || c.trim() === '')) {
-             collectingRows = false;
-             continue;
+            collectingRows = false;
+            continue;
           }
 
           const firstCell = row[0] ? row[0].trim() : '';
@@ -113,18 +113,18 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
             if (collectingRows) {
               // Clean row data
               const cleanRow = row.map(c => c.trim());
-              
+
               // Only add if it looks like data (e.g. starts with a number for Rank/Code, or at least isn't empty)
               // We accept rows where at least the first column is a digit (Rank)
               if (/^\d+$/.test(cleanRow[0])) {
-                 if (currentTableType === 'qty' && currentGroup.qtyTable) {
-                    currentGroup.qtyTable.rows.push(cleanRow);
-                 } else if (currentTableType === 'amount' && currentGroup.amountTable) {
-                    currentGroup.amountTable.rows.push(cleanRow);
-                 }
+                if (currentTableType === 'qty' && currentGroup.qtyTable) {
+                  currentGroup.qtyTable.rows.push(cleanRow);
+                } else if (currentTableType === 'amount' && currentGroup.amountTable) {
+                  currentGroup.amountTable.rows.push(cleanRow);
+                }
               } else {
-                 // If we encounter a row that doesn't look like data (and isn't empty), stop collecting
-                 collectingRows = false;
+                // If we encounter a row that doesn't look like data (and isn't empty), stop collecting
+                collectingRows = false;
               }
             }
           }
@@ -156,19 +156,18 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
             <button
               key={store}
               onClick={() => setSelectedStore(store)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
-                selectedStore === store
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${selectedStore === store
                   ? 'bg-white text-sky-700 shadow-sm'
                   : 'text-slate-500 hover:text-slate-700'
-              }`}
+                }`}
             >
               Magasin {store}
             </button>
           ))}
         </div>
-        
+
         <div className="text-slate-600 font-medium bg-slate-50 px-4 py-2 rounded border border-slate-200 whitespace-nowrap">
-           {period || 'Période inconnue'}
+          {period || 'Période inconnue'}
         </div>
       </div>
 
@@ -182,9 +181,9 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
           {error}
         </div>
       ) : groups.length === 0 ? (
-         <div className="bg-white border border-slate-200 rounded-lg p-10 text-center text-slate-500">
-            Aucune donnée "Top 10" trouvée pour ce magasin.
-         </div>
+        <div className="bg-white border border-slate-200 rounded-lg p-10 text-center text-slate-500">
+          Aucune donnée "Top 10" trouvée pour ce magasin.
+        </div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {groups.map((group, idx) => (
@@ -192,7 +191,7 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
               <div className="bg-slate-50 border-b border-slate-200 px-4 py-3">
                 <h3 className="font-bold text-slate-700 text-sm sm:text-base">{group.name}</h3>
               </div>
-              
+
               <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 grow">
                 {/* Quantity Table */}
                 <div className="flex flex-col h-full">
@@ -201,9 +200,9 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
                   </div>
                   <div className="border border-slate-200 rounded-b overflow-hidden grow">
                     {group.qtyTable && group.qtyTable.rows.length > 0 ? (
-                       <SimpleTable headers={group.qtyTable.headers} rows={group.qtyTable.rows.slice(0, 10)} type="qty" />
+                      <SimpleTable headers={group.qtyTable.headers} rows={group.qtyTable.rows.slice(0, 10)} type="qty" />
                     ) : (
-                        <div className="p-4 text-center text-slate-400 text-xs">Aucune donnée</div>
+                      <div className="p-4 text-center text-slate-400 text-xs">Aucune donnée</div>
                     )}
                   </div>
                 </div>
@@ -215,9 +214,9 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
                   </div>
                   <div className="border border-slate-200 rounded-b overflow-hidden grow">
                     {group.amountTable && group.amountTable.rows.length > 0 ? (
-                        <SimpleTable headers={group.amountTable.headers} rows={group.amountTable.rows.slice(0, 10)} type="amount" />
+                      <SimpleTable headers={group.amountTable.headers} rows={group.amountTable.rows.slice(0, 10)} type="amount" />
                     ) : (
-                        <div className="p-4 text-center text-slate-400 text-xs">Aucune donnée</div>
+                      <div className="p-4 text-center text-slate-400 text-xs">Aucune donnée</div>
                     )}
                   </div>
                 </div>
@@ -231,57 +230,57 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
 };
 
 const SimpleTable: React.FC<{ headers: string[], rows: string[][], type: 'qty' | 'amount' }> = ({ headers, rows, type }) => {
-    // Heuristic to find the best columns to display
-    // 1. Rank (usually first col or named "Rang")
-    // 2. Designation (named "Libellé", "Désignation", "Article")
-    // 3. Value (named "Quantité", "Montant", "CA")
+  // Heuristic to find the best columns to display
+  // 1. Rank (usually first col or named "Rang")
+  // 2. Designation (named "Libellé", "Désignation", "Article")
+  // 3. Value (named "Quantité", "Montant", "CA")
 
-    const libelleIdx = headers.findIndex(h => {
-        const t = h.toLowerCase();
-        return t.includes('libell') || t.includes('désignation') || t.includes('designation') || t.includes('produit');
-    });
-    
-    const valIdx = headers.findIndex(h => {
-        const t = h.toLowerCase();
-        if (type === 'qty') {
-            return t.includes('qt') || t.includes('quant') || t.includes('nombre');
-        } else {
-            return t.includes('montant') || t.includes('valeur') || t === 'ca' || t === 'c.a.' || t.includes('chiffre');
-        }
-    });
-    
-    // Fallback indices if we can't find smart matches
-    // Default: 0 (Rank), 2 (Libelle often), 4 (Value often) or just 0,1,2
-    const indicesToShow = (libelleIdx !== -1 && valIdx !== -1) 
-        ? [0, libelleIdx, valIdx] 
-        : [0, 1, 2].filter(i => i < headers.length);
+  const libelleIdx = headers.findIndex(h => {
+    const t = h.toLowerCase();
+    return t.includes('libell') || t.includes('désignation') || t.includes('designation') || t.includes('produit');
+  });
 
-    return (
-        <div className="overflow-x-auto">
-            <table className="min-w-full text-xs w-full">
-                <thead className="bg-slate-50">
-                    <tr>
-                        {indicesToShow.map((i, k) => (
-                            <th key={k} className="px-2 py-1.5 text-left font-semibold text-slate-600 border-b border-slate-100 whitespace-nowrap">
-                                {headers[i]}
-                            </th>
-                        ))}
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                    {rows.map((row, rIdx) => (
-                        <tr key={rIdx} className={rIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
-                             {indicesToShow.map((i, cIdx) => (
-                                <td key={cIdx} className={`px-2 py-1.5 truncate max-w-[120px] ${cIdx === 0 ? 'font-medium text-slate-500 w-8' : 'text-slate-700'}`} title={row[i]}>
-                                    {row[i]}
-                                </td>
-                             ))}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    );
+  const valIdx = headers.findIndex(h => {
+    const t = h.toLowerCase();
+    if (type === 'qty') {
+      return t.includes('qt') || t.includes('quant') || t.includes('nombre');
+    } else {
+      return t.includes('montant') || t.includes('valeur') || t === 'ca' || t === 'c.a.' || t.includes('chiffre');
+    }
+  });
+
+  // Fallback indices if we can't find smart matches
+  // Default: 0 (Rank), 2 (Libelle often), 4 (Value often) or just 0,1,2
+  const indicesToShow = (libelleIdx !== -1 && valIdx !== -1)
+    ? [0, libelleIdx, valIdx]
+    : [0, 1, 2].filter(i => i < headers.length);
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-xs w-full">
+        <thead className="bg-slate-50">
+          <tr>
+            {indicesToShow.map((i, k) => (
+              <th key={k} className="px-2 py-1.5 text-left font-semibold text-slate-600 border-b border-slate-100 whitespace-nowrap">
+                {headers[i]}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {rows.map((row, rIdx) => (
+            <tr key={rIdx} className={rIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+              {indicesToShow.map((i, cIdx) => (
+                <td key={cIdx} className={`px-2 py-1.5 truncate max-w-[120px] ${cIdx === 0 ? 'font-medium text-slate-500 w-8' : 'text-slate-700'}`} title={row[i]}>
+                  {row[i]}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 export default Top10Analysis;
