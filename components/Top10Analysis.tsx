@@ -56,64 +56,36 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
         }
         setPeriod(foundPeriod);
 
-        // Parse the sheet
-        const parsedGroups: NomenclatureGroup[] = [];
-        let currentGroup: NomenclatureGroup | null = null;
-        let currentTableType: 'qty' | 'amount' | null = null;
-        let expectingHeaders = false;
+        // Extract nomenclature from first cell
+        const firstCell = rawData[0] && rawData[0][0] ? rawData[0][0] : '';
+        const nomenclatureMatch = firstCell.match(/Nomenclature\s*:\s*([^H]+?)(?:\s+(?:Houdemont|Nancy))/i);
+        const nomenclatureName = nomenclatureMatch ? nomenclatureMatch[1].trim() : 'Inconnu';
 
-        for (let i = 0; i < rawData.length; i++) {
+        // Extract headers from row 0 (clean up __EMPTY markers)
+        const headers = rawData[0].map(h => {
+          if (!h) return '';
+          return h.replace(/__EMPTY(_\d+)?/g, '').replace(/^.*Code\s*/i, 'Code').trim();
+        }).filter(h => h);
+
+        // Collect all data rows (those starting with a product code)
+        const allRows: string[][] = [];
+        for (let i = 1; i < rawData.length; i++) {
           const row = rawData[i];
-          if (row.every(c => !c || c.trim() === '')) continue;
-
-          const firstCell = row[0] ? row[0].trim() : '';
-          const fullRowString = row.join(' ').toLowerCase();
-
-          if (firstCell.toLowerCase().startsWith('nomenclature')) {
-            if (currentGroup) parsedGroups.push(currentGroup);
-            currentGroup = { name: firstCell };
-            currentTableType = null;
-            expectingHeaders = false;
-            continue;
-          }
-
-          if (fullRowString.includes('top 10') || fullRowString.includes('top10')) {
-            if (fullRowString.includes('quant')) {
-              currentTableType = 'qty';
-              expectingHeaders = true;
-              continue;
-            } else if (fullRowString.includes('montant')) {
-              currentTableType = 'amount';
-              expectingHeaders = true;
-              continue;
-            }
-          }
-
-          if (expectingHeaders && currentGroup && currentTableType) {
-            const headers = row.map(c => c.trim()).filter(c => c !== '');
-            if (currentTableType === 'qty') {
-              currentGroup.qtyTable = { headers, rows: [] };
-            } else {
-              currentGroup.amountTable = { headers, rows: [] };
-            }
-            expectingHeaders = false;
-            continue;
-          }
-
-          if (currentGroup && currentTableType && !expectingHeaders) {
-            const cleanRow = row.map(c => c.trim());
-            if (/^\d+$/.test(cleanRow[0])) {
-              if (currentTableType === 'qty' && currentGroup.qtyTable) {
-                currentGroup.qtyTable.rows.push(cleanRow);
-              } else if (currentTableType === 'amount' && currentGroup.amountTable) {
-                currentGroup.amountTable.rows.push(cleanRow);
-              }
-            }
+          if (row[0] && /^\d+$/.test(row[0].trim())) {
+            allRows.push(row.map(c => c ? c.trim() : ''));
           }
         }
 
-        if (currentGroup) parsedGroups.push(currentGroup);
-        setGroups(parsedGroups);
+        // Create a single group with all data  
+        if (allRows.length > 0) {
+          const group: NomenclatureGroup = {
+            name: `Nomenclature : ${nomenclatureName}`,
+            qtyTable: { headers, rows: allRows },
+          };
+          setGroups([group]);
+        } else {
+          setGroups([]);
+        }
 
       } catch (err) {
         console.error("Erreur parsing Top 10:", err);
@@ -155,37 +127,18 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
           Aucune donnée "Top 10" trouvée pour ce magasin.
         </div>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="space-y-6">
           {groups.map((group, idx) => (
-            <div key={idx} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
+            <div key={idx} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
               <div className="bg-slate-50 border-b border-slate-200 px-4 py-3">
-                <h3 className="font-bold text-slate-700 text-sm sm:text-base">{group.name}</h3>
+                <h3 className="font-bold text-slate-700">{group.name}</h3>
               </div>
-              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 grow">
-                <div className="flex flex-col h-full">
-                  <div className="text-xs font-bold text-green-700 bg-green-50 border border-green-100 px-2 py-1.5 rounded-t mb-0 text-center uppercase tracking-wide">
-                    Top 10 Quantité
-                  </div>
-                  <div className="border border-slate-200 rounded-b overflow-hidden grow">
-                    {group.qtyTable && group.qtyTable.rows.length > 0 ? (
-                      <SimpleTable headers={group.qtyTable.headers} rows={group.qtyTable.rows.slice(0, 10)} type="qty" />
-                    ) : (
-                      <div className="p-4 text-center text-slate-400 text-xs">Aucune donnée</div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-col h-full">
-                  <div className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-1.5 rounded-t mb-0 text-center uppercase tracking-wide">
-                    Top 10 Montant
-                  </div>
-                  <div className="border border-slate-200 rounded-b overflow-hidden grow">
-                    {group.amountTable && group.amountTable.rows.length > 0 ? (
-                      <SimpleTable headers={group.amountTable.headers} rows={group.amountTable.rows.slice(0, 10)} type="amount" />
-                    ) : (
-                      <div className="p-4 text-center text-slate-400 text-xs">Aucune donnée</div>
-                    )}
-                  </div>
-                </div>
+              <div className="p-4">
+                {group.qtyTable && group.qtyTable.rows.length > 0 ? (
+                  <SimpleTable headers={group.qtyTable.headers} rows={group.qtyTable.rows} />
+                ) : (
+                  <div className="p-4 text-center text-slate-400 text-sm">Aucune donnée</div>
+                )}
               </div>
             </div>
           ))}
@@ -195,25 +148,15 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
   );
 };
 
-const SimpleTable: React.FC<{ headers: string[], rows: string[][], type: 'qty' | 'amount' }> = ({ headers, rows, type }) => {
-  const produitIdx = headers.findIndex(h => h.toLowerCase().includes('libell') || h.toLowerCase().includes('produit'));
-  const valIdx = headers.findIndex(h => {
-    const t = h.toLowerCase();
-    return type === 'qty' ? t.includes('quant') : t.includes('montant');
-  });
-
-  const indicesToShow = (produitIdx !== -1 && valIdx !== -1)
-    ? [0, produitIdx, valIdx]
-    : [0, 1, 2].filter(i => i < headers.length);
-
+const SimpleTable: React.FC<{ headers: string[], rows: string[][] }> = ({ headers, rows }) => {
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full text-xs w-full">
         <thead className="bg-slate-50">
           <tr>
-            {indicesToShow.map((i, k) => (
+            {headers.map((h, k) => (
               <th key={k} className="px-2 py-1.5 text-left font-semibold text-slate-600 border-b border-slate-100 whitespace-nowrap">
-                {headers[i]}
+                {h}
               </th>
             ))}
           </tr>
@@ -221,9 +164,9 @@ const SimpleTable: React.FC<{ headers: string[], rows: string[][], type: 'qty' |
         <tbody className="divide-y divide-slate-100">
           {rows.map((row, rIdx) => (
             <tr key={rIdx} className={rIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
-              {indicesToShow.map((i, cIdx) => (
-                <td key={cIdx} className={`px-2 py-1.5 truncate max-w-[120px] ${cIdx === 0 ? 'font-medium text-slate-500 w-8' : 'text-slate-700'}`} title={row[i]}>
-                  {row[i]}
+              {row.map((cell, cIdx) => (
+                <td key={cIdx} className="px-2 py-1.5 truncate max-w-[120px] text-slate-700" title={cell}>
+                  {cell}
                 </td>
               ))}
             </tr>
