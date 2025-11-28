@@ -40,7 +40,7 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
           throw new Error("Aucune donnée trouvée.");
         }
 
-        // Extract and format Period from first line
+        // Extract and format Period
         let foundPeriod = '';
         if (rawData[0] && rawData[0].length > 0) {
           const firstLine = rawData[0][0];
@@ -51,11 +51,80 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
             const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
               'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
             const monthName = months[parseInt(month) - 1];
+            foundPeriod = `Période ${monthName} ${year}`;
           }
-        };
+        }
+        setPeriod(foundPeriod);
 
-        fetchData();
-      }, [sheetId, selectedStore]);
+        // Parse the sheet
+        const parsedGroups: NomenclatureGroup[] = [];
+        let currentGroup: NomenclatureGroup | null = null;
+        let currentTableType: 'qty' | 'amount' | null = null;
+        let expectingHeaders = false;
+
+        for (let i = 0; i < rawData.length; i++) {
+          const row = rawData[i];
+          if (row.every(c => !c || c.trim() === '')) continue;
+
+          const firstCell = row[0] ? row[0].trim() : '';
+          const fullRowString = row.join(' ').toLowerCase();
+
+          if (firstCell.toLowerCase().startsWith('nomenclature')) {
+            if (currentGroup) parsedGroups.push(currentGroup);
+            currentGroup = { name: firstCell };
+            currentTableType = null;
+            expectingHeaders = false;
+            continue;
+          }
+
+          if (fullRowString.includes('top 10') || fullRowString.includes('top10')) {
+            if (fullRowString.includes('quant')) {
+              currentTableType = 'qty';
+              expectingHeaders = true;
+              continue;
+            } else if (fullRowString.includes('montant')) {
+              currentTableType = 'amount';
+              expectingHeaders = true;
+              continue;
+            }
+          }
+
+          if (expectingHeaders && currentGroup && currentTableType) {
+            const headers = row.map(c => c.trim()).filter(c => c !== '');
+            if (currentTableType === 'qty') {
+              currentGroup.qtyTable = { headers, rows: [] };
+            } else {
+              currentGroup.amountTable = { headers, rows: [] };
+            }
+            expectingHeaders = false;
+            continue;
+          }
+
+          if (currentGroup && currentTableType && !expectingHeaders) {
+            const cleanRow = row.map(c => c.trim());
+            if (/^\d+$/.test(cleanRow[0])) {
+              if (currentTableType === 'qty' && currentGroup.qtyTable) {
+                currentGroup.qtyTable.rows.push(cleanRow);
+              } else if (currentTableType === 'amount' && currentGroup.amountTable) {
+                currentGroup.amountTable.rows.push(cleanRow);
+              }
+            }
+          }
+        }
+
+        if (currentGroup) parsedGroups.push(currentGroup);
+        setGroups(parsedGroups);
+
+      } catch (err) {
+        console.error("Erreur parsing Top 10:", err);
+        setError("Impossible de charger les données Top 10.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [sheetId, selectedStore]);
 
   return (
     <div className="space-y-6">
@@ -127,7 +196,7 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
 };
 
 const SimpleTable: React.FC<{ headers: string[], rows: string[][], type: 'qty' | 'amount' }> = ({ headers, rows, type }) => {
-  const produitIdx = headers.findIndex(h => h.toLowerCase().includes('produit'));
+  const produitIdx = headers.findIndex(h => h.toLowerCase().includes('libell') || h.toLowerCase().includes('produit'));
   const valIdx = headers.findIndex(h => {
     const t = h.toLowerCase();
     return type === 'qty' ? t.includes('quant') : t.includes('montant');
