@@ -271,15 +271,19 @@ export const getSheetData = async (sheetId: string, sheetName: string): Promise<
 
 export const getRawSheetData = async (sheetId: string, sheetName: string): Promise<string[][]> => {
   const url = `/api/sheets/${sheetId}/${encodeURIComponent(sheetName)}`;
-  console.log(`[LOG] Tentative de récupération des données BRUTES pour "${sheetName}"`);
+  console.log(`[LOG] [RAW] Tentative de récupération des données BRUTES pour "${sheetName}", URL: ${url}`);
 
   try {
     const response = await fetch(url);
+    console.log(`[LOG] [RAW] Response status: ${response.status}`);
     if (!response.ok) throw new Error(`Statut HTTP : ${response.status}`);
     const csvText = await response.text();
-    return parseCSVToMatrix(csvText);
+    console.log(`[LOG] [RAW] CSV length: ${csvText.length} chars`);
+    const matrix = parseCSVToMatrix(csvText);
+    console.log(`[LOG] [RAW] Matrix parsed: ${matrix.length} rows`);
+    return matrix;
   } catch (error) {
-    console.warn(`[WARN] Echec données brutes pour ${sheetName} (${sheetId}). Tentative Mock Data.`);
+    console.error(`[ERROR] [RAW] Echec pour ${sheetName}:`, error);
 
     // Fallback spécifique pour Top 10 (Multi-tableaux)
     if (sheetId === '1s5poBaK7aWy1Wze2aMiEBWia1HWXIYVDHOYjj-nHvpU') {
