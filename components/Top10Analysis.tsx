@@ -18,7 +18,7 @@ interface NomenclatureGroup {
 }
 
 // Stores defined by the sheets in the provided Google Doc
-const STORES = ['HOUDEMONT', 'Nancy'];
+const STORES = ['Houdemont', 'Nancy'];
 
 const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
   const [selectedStore, setSelectedStore] = useState(STORES[0]);
