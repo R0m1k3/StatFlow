@@ -14,13 +14,12 @@ app.use(morgan('combined'));
 app.get('/api/sheets/:sheetId/:sheetName?', async (req, res) => {
   const { sheetId, sheetName } = req.params;
 
-  // IMPORTANT: gviz API limite les résultats à ~200 lignes
-  // Pour récupérer TOUTES les données, il faudrait utiliser l'API officielle Google Sheets
-  // Pour l'instant, on garde gviz mais on documente la limitation
+  // IMPORTANT: gviz API limite les résultats si on ne spécifie pas de range
+  // On force une lecture large (A1:ZZ2000) pour éviter la troncature aux lignes vides
   let googleSheetsUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
 
   if (sheetName && sheetName !== 'index') {
-    googleSheetsUrl += `&sheet=${encodeURIComponent(decodeURIComponent(sheetName))}`;
+    googleSheetsUrl += `&sheet=${encodeURIComponent(decodeURIComponent(sheetName))}&range=A1:ZZ2000`;
   }
 
   try {

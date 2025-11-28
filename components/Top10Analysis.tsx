@@ -40,9 +40,9 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
           throw new Error("Aucune donnée trouvée.");
         }
 
-        // Extract and format Period
+        // Extract period
         let foundPeriod = '';
-        if (rawData[0] && rawData[0].length > 0) {
+        if (rawData[0] && rawData[0][0]) {
           const firstLine = rawData[0][0];
           const periodMatch = firstLine.match(/période\s*:\s*(\d{4})-(\d{2})/i);
           if (periodMatch) {
@@ -57,57 +57,77 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
         setPeriod(foundPeriod);
 
         console.log('[DEBUG TOP10] Total rows received:', rawData.length);
-        console.log('[DEBUG TOP10] First 10 rows:', rawData.slice(0, 10));
-        console.log('[DEBUG TOP10] Row 20:', rawData[20]);
 
-        // Parse ALL nomenclatures with their qty and amount tables
+        // Parse ALL nomenclatures
         const parsedGroups: NomenclatureGroup[] = [];
         let currentGroup: NomenclatureGroup | null = null;
         let currentTableType: 'qty' | 'amount' | null = null;
-        let currentHeaders: string[] = [];
+
+        // Helper to check if a row is empty
+        const isEmptyRow = (row: string[]) => row.every(c => !c || c.trim() === '');
+
+        // First pass: Identify nomenclatures by looking for "Nomenclature :"
+        // Since gviz merges cells, we look at the first cell
 
         for (let i = 0; i < rawData.length; i++) {
           const row = rawData[i];
-          if (row.every(c => !c || c.trim() === '')) continue;
+          if (isEmptyRow(row)) continue;
 
           const firstCell = row[0] ? row[0].trim() : '';
           const fullRowString = row.join(' ').toLowerCase();
 
           // Detect new Nomenclature
-          if (firstCell.toLowerCase().startsWith('nomenclature')) {
+          // It can be "Nomenclature : 31-..." or merged "Période ... Nomenclature : 31-..."
+          let nomenclatureName = '';
+          if (firstCell.toLowerCase().includes('nomenclature')) {
+            const match = firstCell.match(/Nomenclature\s*:\s*([^H]+?)(?:\s+(?:Houdemont|Nancy)|$)/i);
+            if (match) {
+              nomenclatureName = match[1].trim();
+            } else if (firstCell.toLowerCase().startsWith('nomenclature')) {
+              nomenclatureName = firstCell.split(':')[1]?.trim() || firstCell;
+            }
+          }
+
+          if (nomenclatureName) {
             if (currentGroup) parsedGroups.push(currentGroup);
-            currentGroup = { name: firstCell };
+            currentGroup = { name: nomenclatureName };
             currentTableType = null;
-            console.log('[DEBUG TOP10] Found nomenclature:', firstCell);
             continue;
           }
 
-          // Detect table type (Quantité or Montant)
+          // If we haven't found a group yet, try to find one from the very first line if it's merged
+          if (!currentGroup && i === 0 && firstCell.toLowerCase().includes('nomenclature')) {
+            const match = firstCell.match(/Nomenclature\s*:\s*([^H]+?)(?:\s+(?:Houdemont|Nancy)|$)/i);
+            if (match) {
+              currentGroup = { name: match[1].trim() };
+            }
+          }
+
+          // Detect table type
           if (fullRowString.includes('top 10')) {
-            if (fullRowString.includes('quantité') || fullRowString.includes('quant')) {
+            if (fullRowString.includes('quant')) {
               currentTableType = 'qty';
-              console.log('[DEBUG TOP10] Detected Quantité table');
               continue;
             } else if (fullRowString.includes('montant')) {
               currentTableType = 'amount';
-              console.log('[DEBUG TOP10] Detected Montant table');
               continue;
             }
           }
 
           // If line starts with "Code", it's headers
           if (firstCell.toLowerCase() === 'code') {
-            currentHeaders = row.map(c => c ? c.trim() : '').filter(c => c);
-            if (currentGroup && currentTableType === 'qty') {
-              currentGroup.qtyTable = { headers: currentHeaders, rows: [] };
-            } else if (currentGroup && currentTableType === 'amount') {
-              currentGroup.amountTable = { headers: currentHeaders, rows: [] };
+            const headers = row.map(c => c ? c.trim() : '').filter(c => c);
+            if (currentGroup) {
+              if (currentTableType === 'qty') {
+                currentGroup.qtyTable = { headers, rows: [] };
+              } else if (currentTableType === 'amount') {
+                currentGroup.amountTable = { headers, rows: [] };
+              }
             }
-            console.log('[DEBUG TOP10] Headers:', currentHeaders);
             continue;
           }
 
-          // Collect data rows (starting with a number = product code)
+          // Collect data rows
           if (currentGroup && currentTableType && /^\d+$/.test(firstCell)) {
             const cleanRow = row.map(c => c ? c.trim() : '');
             if (currentTableType === 'qty' && currentGroup.qtyTable) {
@@ -118,14 +138,9 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
           }
         }
 
-        // Push last group
         if (currentGroup) parsedGroups.push(currentGroup);
 
         console.log('[DEBUG TOP10] Parsed groups:', parsedGroups.length);
-        parsedGroups.forEach((g, idx) => {
-          console.log(`[DEBUG TOP10] Group ${idx}: ${g.name}, Qty rows: ${g.qtyTable?.rows.length || 0}, Amt rows: ${g.amountTable?.rows.length || 0}`);
-        });
-
         setGroups(parsedGroups);
 
       } catch (err) {
