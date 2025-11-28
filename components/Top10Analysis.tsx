@@ -56,6 +56,10 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
         }
         setPeriod(foundPeriod);
 
+        console.log('[DEBUG TOP10] Period:', foundPeriod);
+        console.log('[DEBUG TOP10] Total rows:', rawData.length);
+        console.log('[DEBUG TOP10] First row:', rawData[0]);
+
         // Parse the sheet
         const parsedGroups: NomenclatureGroup[] = [];
         let currentGroup: NomenclatureGroup | null = null;
@@ -74,6 +78,7 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
             currentGroup = { name: firstCell };
             currentTableType = null;
             expectingHeaders = false;
+            console.log('[DEBUG TOP10] Found nomenclature:', firstCell);
             continue;
           }
 
@@ -81,10 +86,12 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
             if (fullRowString.includes('quant')) {
               currentTableType = 'qty';
               expectingHeaders = true;
+              console.log('[DEBUG TOP10] Found qty table');
               continue;
             } else if (fullRowString.includes('montant')) {
               currentTableType = 'amount';
               expectingHeaders = true;
+              console.log('[DEBUG TOP10] Found amount table');
               continue;
             }
           }
@@ -97,6 +104,7 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
               currentGroup.amountTable = { headers, rows: [] };
             }
             expectingHeaders = false;
+            console.log('[DEBUG TOP10] Headers:', headers);
             continue;
           }
 
@@ -113,6 +121,12 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
         }
 
         if (currentGroup) parsedGroups.push(currentGroup);
+
+        console.log('[DEBUG TOP10] Total groups:', parsedGroups.length);
+        parsedGroups.forEach((g, idx) => {
+          console.log(`[DEBUG TOP10] Group ${idx}: ${g.name}, Qty: ${g.qtyTable?.rows.length || 0}, Amt: ${g.amountTable?.rows.length || 0}`);
+        });
+
         setGroups(parsedGroups);
 
       } catch (err) {
