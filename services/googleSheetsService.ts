@@ -179,10 +179,10 @@ const generateRecentPeriods = (): string[] => {
 // Known sheets that use YYYY-MM tabs but do NOT have an 'index' tab.
 // We skip the index fetch for these to avoid 404 errors.
 const KNOWN_NO_INDEX_SHEETS = [
-  '1tFCeunQtTq-v3OTOM6EraSBLCUlgkhajSEjwdKfSQj4', // Famille
-  '10OyLQE6xj4chSW2uF-xM-CEpvs3NPkb4',            // Hit Parade
-  '1m92J7LubktT6U91gq9bFhNmuYZxY0yw9jgSFMze9lY4', // Fournisseurs
-  '1s5poBaK7aWy1Wze2aMiEBWia1HWXIYVDHOYjj-nHvpU'  // Top 10
+  // '1tFCeunQtTq-v3OTOM6EraSBLCUlgkhajSEjwdKfSQj4', // Famille - NOW READS REAL INDEX
+  // '1BZD599SY1q3OoZWjlAPUYysMEbWgwsOH8IZrchDx374',   // Hit Parade - NOW READS REAL INDEX
+  // '1m92J7LubktT6U91gq9bFhNmuYZxY0yw9jgSFMze9lY4',   // Fournisseurs - NOW READS REAL INDEX
+  '1s5poBaK7aWy1Wze2aMiEBWia1HWXIYVDHOYjj-nHvpU'    // Top 10 - Uses multi-table format
 ];
 
 export const getSheetNames = async (sheetId: string): Promise<string[]> => {
