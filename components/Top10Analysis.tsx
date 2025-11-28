@@ -58,16 +58,12 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
 
         console.log('[DEBUG TOP10] Total rows received:', rawData.length);
 
-        // Parse ALL nomenclatures
         const parsedGroups: NomenclatureGroup[] = [];
         let currentGroup: NomenclatureGroup | null = null;
         let currentTableType: 'qty' | 'amount' | null = null;
 
         // Helper to check if a row is empty
         const isEmptyRow = (row: string[]) => row.every(c => !c || c.trim() === '');
-
-        // First pass: Identify nomenclatures by looking for "Nomenclature :"
-        // Since gviz merges cells, we look at the first cell
 
         for (let i = 0; i < rawData.length; i++) {
           const row = rawData[i];
@@ -76,10 +72,10 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
           const firstCell = row[0] ? row[0].trim() : '';
           const fullRowString = row.join(' ').toLowerCase();
 
-          // Detect new Nomenclature
-          // It can be "Nomenclature : 31-..." or merged "Période ... Nomenclature : 31-..."
+          // --- 1. DETECT NOMENCLATURE ---
           let nomenclatureName = '';
           if (firstCell.toLowerCase().includes('nomenclature')) {
+            // Try to extract clean name
             const match = firstCell.match(/Nomenclature\s*:\s*([^H]+?)(?:\s+(?:Houdemont|Nancy)|$)/i);
             if (match) {
               nomenclatureName = match[1].trim();
@@ -92,31 +88,42 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
             if (currentGroup) parsedGroups.push(currentGroup);
             currentGroup = { name: nomenclatureName };
             currentTableType = null;
+            console.log(`[DEBUG TOP10] New Group: ${nomenclatureName}`);
             continue;
           }
 
-          // If we haven't found a group yet, try to find one from the very first line if it's merged
+          // Fallback: If we are at the beginning and haven't found a group, check first line again
           if (!currentGroup && i === 0 && firstCell.toLowerCase().includes('nomenclature')) {
             const match = firstCell.match(/Nomenclature\s*:\s*([^H]+?)(?:\s+(?:Houdemont|Nancy)|$)/i);
             if (match) {
               currentGroup = { name: match[1].trim() };
+              console.log(`[DEBUG TOP10] Initial Group (fallback): ${currentGroup.name}`);
             }
           }
 
-          // Detect table type
+          // --- 2. DETECT TABLE TYPE ---
           if (fullRowString.includes('top 10')) {
             if (fullRowString.includes('quant')) {
               currentTableType = 'qty';
+              console.log(`[DEBUG TOP10] Table QTY detected at row ${i}`);
               continue;
             } else if (fullRowString.includes('montant')) {
               currentTableType = 'amount';
+              console.log(`[DEBUG TOP10] Table AMOUNT detected at row ${i}`);
               continue;
             }
           }
 
-          // If line starts with "Code", it's headers
-          if (firstCell.toLowerCase() === 'code') {
+          // --- 3. DETECT HEADERS ---
+          // More robust check: looks for "Code", "Rang", "Libellé" or "Fournisseur"
+          const isHeaderRow =
+            firstCell.toLowerCase() === 'code' ||
+            firstCell.toLowerCase() === 'rang' ||
+            row.some(c => c.toLowerCase().includes('libellé') || c.toLowerCase().includes('fournisseur'));
+
+          if (isHeaderRow) {
             const headers = row.map(c => c ? c.trim() : '').filter(c => c);
+            console.log(`[DEBUG TOP10] Headers detected: ${headers.join(', ')}`);
             if (currentGroup) {
               if (currentTableType === 'qty') {
                 currentGroup.qtyTable = { headers, rows: [] };
@@ -127,20 +134,37 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
             continue;
           }
 
-          // Collect data rows
-          if (currentGroup && currentTableType && /^\d+$/.test(firstCell)) {
-            const cleanRow = row.map(c => c ? c.trim() : '');
-            if (currentTableType === 'qty' && currentGroup.qtyTable) {
-              currentGroup.qtyTable.rows.push(cleanRow);
-            } else if (currentTableType === 'amount' && currentGroup.amountTable) {
-              currentGroup.amountTable.rows.push(cleanRow);
+          // --- 4. DETECT DATA ROWS ---
+          // Must have a current group and table type
+          if (currentGroup && currentTableType) {
+            // Check if it looks like a data row:
+            // - First cell is a number (Rank or Code)
+            // - OR Second cell is a number (if first is Rank)
+            // - AND row has multiple columns
+            const firstIsNumber = /^\d+$/.test(firstCell);
+            const secondIsNumber = row[1] && /^\d+$/.test(row[1].trim());
+
+            if (firstIsNumber || secondIsNumber) {
+              const cleanRow = row.map(c => c ? c.trim() : '');
+
+              if (currentTableType === 'qty') {
+                if (!currentGroup.qtyTable) currentGroup.qtyTable = { headers: ['Rang', 'Code', 'Libellé', '...'], rows: [] }; // Fallback headers
+                currentGroup.qtyTable.rows.push(cleanRow);
+              } else if (currentTableType === 'amount') {
+                if (!currentGroup.amountTable) currentGroup.amountTable = { headers: ['Rang', 'Code', 'Libellé', '...'], rows: [] }; // Fallback headers
+                currentGroup.amountTable.rows.push(cleanRow);
+              }
             }
           }
         }
 
         if (currentGroup) parsedGroups.push(currentGroup);
 
-        console.log('[DEBUG TOP10] Parsed groups:', parsedGroups.length);
+        console.log('[DEBUG TOP10] Final parsed groups count:', parsedGroups.length);
+        parsedGroups.forEach((g, idx) => {
+          console.log(`[DEBUG TOP10] Group ${idx} (${g.name}): Qty=${g.qtyTable?.rows.length || 0}, Amt=${g.amountTable?.rows.length || 0}`);
+        });
+
         setGroups(parsedGroups);
 
       } catch (err) {
@@ -183,32 +207,32 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
           Aucune donnée "Top 10" trouvée pour ce magasin.
         </div>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="space-y-6">
           {groups.map((group, idx) => (
-            <div key={idx} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
+            <div key={idx} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
               <div className="bg-slate-50 border-b border-slate-200 px-4 py-3">
-                <h3 className="font-bold text-slate-700 text-sm sm:text-base">{group.name}</h3>
+                <h3 className="font-bold text-slate-700">{group.name}</h3>
               </div>
-              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 grow">
-                <div className="flex flex-col h-full">
-                  <div className="text-xs font-bold text-green-700 bg-green-50 border border-green-100 px-2 py-1.5 rounded-t mb-0 text-center uppercase tracking-wide">
+              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col">
+                  <div className="text-xs font-bold text-green-700 bg-green-50 border border-green-100 px-2 py-1.5 rounded-t text-center uppercase">
                     Top 10 Quantité
                   </div>
-                  <div className="border border-slate-200 rounded-b overflow-hidden grow">
+                  <div className="border border-slate-200 rounded-b overflow-hidden">
                     {group.qtyTable && group.qtyTable.rows.length > 0 ? (
-                      <SimpleTable headers={group.qtyTable.headers} rows={group.qtyTable.rows} />
+                      <SimpleTable headers={group.qtyTable.headers} rows={group.qtyTable.rows.slice(0, 10)} />
                     ) : (
                       <div className="p-4 text-center text-slate-400 text-xs">Aucune donnée</div>
                     )}
                   </div>
                 </div>
-                <div className="flex flex-col h-full">
-                  <div className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-1.5 rounded-t mb-0 text-center uppercase tracking-wide">
+                <div className="flex flex-col">
+                  <div className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-1.5 rounded-t text-center uppercase">
                     Top 10 Montant
                   </div>
-                  <div className="border border-slate-200 rounded-b overflow-hidden grow">
+                  <div className="border border-slate-200 rounded-b overflow-hidden">
                     {group.amountTable && group.amountTable.rows.length > 0 ? (
-                      <SimpleTable headers={group.amountTable.headers} rows={group.amountTable.rows} />
+                      <SimpleTable headers={group.amountTable.headers} rows={group.amountTable.rows.slice(0, 10)} />
                     ) : (
                       <div className="p-4 text-center text-slate-400 text-xs">Aucune donnée</div>
                     )}
