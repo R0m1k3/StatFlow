@@ -18,8 +18,7 @@ app.use(morgan('combined'));
 app.get('/api/sheets/:sheetId/:sheetName?', async (req, res) => {
   const { sheetId, sheetName } = req.params;
 
-  // Utilisation de l'API Google Visualization (gviz) qui est souvent plus fiable pour l'export CSV
-  // que le endpoint /export standard.
+  // Use gviz API - it should return all rows by default
   let googleSheetsUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
 
   if (sheetName && sheetName !== 'index') {
@@ -42,6 +41,7 @@ app.get('/api/sheets/:sheetId/:sheetName?', async (req, res) => {
     }
 
     const csvData = await fetchResponse.text();
+    console.log(`[PROXY] CSV reçu: ${csvData.length} caractères, ${csvData.split('\n').length} lignes`);
     res.header('Content-Type', 'text/csv; charset=utf-8');
     res.send(csvData);
     console.log(`[PROXY] Succès pour la feuille : ${sheetName || 'défaut'}`);

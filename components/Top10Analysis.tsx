@@ -56,36 +56,67 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
         }
         setPeriod(foundPeriod);
 
-        // Extract nomenclature from first cell
-        const firstCell = rawData[0] && rawData[0][0] ? rawData[0][0] : '';
-        const nomenclatureMatch = firstCell.match(/Nomenclature\s*:\s*([^H]+?)(?:\s+(?:Houdemont|Nancy))/i);
-        const nomenclatureName = nomenclatureMatch ? nomenclatureMatch[1].trim() : 'Inconnu';
+        console.log('[DEBUG TOP10] Total rows received:', rawData.length);
 
-        // Extract headers from row 0 (clean up __EMPTY markers)
-        const headers = rawData[0].map(h => {
-          if (!h) return '';
-          return h.replace(/__EMPTY(_\d+)?/g, '').replace(/^.*Code\s*/i, 'Code').trim();
-        }).filter(h => h);
+        // Parse ALL nomenclatures with their qty and amount tables
+        const parsedGroups: NomenclatureGroup[] = [];
+        let currentGroup: NomenclatureGroup | null = null;
+        let currentTableType: 'qty' | 'amount' | null = null;
+        let currentHeaders: string[] = [];
 
-        // Collect all data rows (those starting with a product code)
-        const allRows: string[][] = [];
-        for (let i = 1; i < rawData.length; i++) {
+        for (let i = 0; i < rawData.length; i++) {
           const row = rawData[i];
-          if (row[0] && /^\d+$/.test(row[0].trim())) {
-            allRows.push(row.map(c => c ? c.trim() : ''));
+          if (row.every(c => !c || c.trim() === '')) continue;
+
+          const firstCell = row[0] ? row[0].trim() : '';
+          const fullRowString = row.join(' ').toLowerCase();
+
+          // Detect new Nomenclature
+          if (firstCell.toLowerCase().startsWith('nomenclature')) {
+            if (currentGroup) parsedGroups.push(currentGroup);
+            currentGroup = { name: firstCell };
+            currentTableType = null;
+            continue;
+          }
+
+          // Detect table type (Quantité or Montant)
+          if (fullRowString.includes('top 10')) {
+            if (fullRowString.includes('quantité') || fullRowString.includes('quant')) {
+              currentTableType = 'qty';
+              continue;
+            } else if (fullRowString.includes('montant')) {
+              currentTableType = 'amount';
+              continue;
+            }
+          }
+
+          // If line starts with "Code", it's headers
+          if (firstCell.toLowerCase() === 'code') {
+            currentHeaders = row.map(c => c ? c.trim() : '').filter(c => c);
+            if (currentGroup && currentTableType === 'qty') {
+              currentGroup.qtyTable = { headers: currentHeaders, rows: [] };
+            } else if (currentGroup && currentTableType === 'amount') {
+              currentGroup.amountTable = { headers: currentHeaders, rows: [] };
+            }
+            continue;
+          }
+
+          // Collect data rows (starting with a number = product code)
+          if (currentGroup && currentTableType && /^\d+$/.test(firstCell)) {
+            const cleanRow = row.map(c => c ? c.trim() : '');
+            if (currentTableType === 'qty' && currentGroup.qtyTable) {
+              currentGroup.qtyTable.rows.push(cleanRow);
+            } else if (currentTableType === 'amount' && currentGroup.amountTable) {
+              currentGroup.amountTable.rows.push(cleanRow);
+            }
           }
         }
 
-        // Create a single group with all data  
-        if (allRows.length > 0) {
-          const group: NomenclatureGroup = {
-            name: `Nomenclature : ${nomenclatureName}`,
-            qtyTable: { headers, rows: allRows },
-          };
-          setGroups([group]);
-        } else {
-          setGroups([]);
-        }
+        // Push last group
+        if (currentGroup) parsedGroups.push(currentGroup);
+
+        console.log('[DEBUG TOP10] Parsed groups:', parsedGroups.length);
+        setGroups(parsedGroups);
 
       } catch (err) {
         console.error("Erreur parsing Top 10:", err);
@@ -127,18 +158,37 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
           Aucune donnée "Top 10" trouvée pour ce magasin.
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {groups.map((group, idx) => (
-            <div key={idx} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div key={idx} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
               <div className="bg-slate-50 border-b border-slate-200 px-4 py-3">
-                <h3 className="font-bold text-slate-700">{group.name}</h3>
+                <h3 className="font-bold text-slate-700 text-sm sm:text-base">{group.name}</h3>
               </div>
-              <div className="p-4">
-                {group.qtyTable && group.qtyTable.rows.length > 0 ? (
-                  <SimpleTable headers={group.qtyTable.headers} rows={group.qtyTable.rows} />
-                ) : (
-                  <div className="p-4 text-center text-slate-400 text-sm">Aucune donnée</div>
-                )}
+              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 grow">
+                <div className="flex flex-col h-full">
+                  <div className="text-xs font-bold text-green-700 bg-green-50 border border-green-100 px-2 py-1.5 rounded-t mb-0 text-center uppercase tracking-wide">
+                    Top 10 Quantité
+                  </div>
+                  <div className="border border-slate-200 rounded-b overflow-hidden grow">
+                    {group.qtyTable && group.qtyTable.rows.length > 0 ? (
+                      <SimpleTable headers={group.qtyTable.headers} rows={group.qtyTable.rows} />
+                    ) : (
+                      <div className="p-4 text-center text-slate-400 text-xs">Aucune donnée</div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-col h-full">
+                  <div className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-1.5 rounded-t mb-0 text-center uppercase tracking-wide">
+                    Top 10 Montant
+                  </div>
+                  <div className="border border-slate-200 rounded-b overflow-hidden grow">
+                    {group.amountTable && group.amountTable.rows.length > 0 ? (
+                      <SimpleTable headers={group.amountTable.headers} rows={group.amountTable.rows} />
+                    ) : (
+                      <div className="p-4 text-center text-slate-400 text-xs">Aucune donnée</div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           ))}
