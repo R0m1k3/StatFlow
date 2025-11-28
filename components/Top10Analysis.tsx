@@ -49,6 +49,10 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
         }
         setPeriod(foundPeriod);
 
+        console.log('[DEBUG TOP10] Total rows:', rawData.length);
+        console.log('[DEBUG TOP10] First 5 rows:', rawData.slice(0, 5));
+        console.log('[DEBUG TOP10] Sample row 10-15:', rawData.slice(10, 15));
+
         // 2. Parse the multiple tables
         const parsedGroups: NomenclatureGroup[] = [];
         let currentGroup: NomenclatureGroup | null = null;
@@ -133,6 +137,13 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
         if (currentGroup) {
           parsedGroups.push(currentGroup);
         }
+
+        console.log('[DEBUG TOP10] Parsed groups:', parsedGroups.length);
+        parsedGroups.forEach((g, idx) => {
+          console.log(`[DEBUG TOP10] Group ${idx}:`, g.name,
+            'Qty rows:', g.qtyTable?.rows.length || 0,
+            'Amount rows:', g.amountTable?.rows.length || 0);
+        });
 
         setGroups(parsedGroups);
 
