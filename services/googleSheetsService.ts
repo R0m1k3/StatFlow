@@ -193,7 +193,7 @@ export const getSheetNames = async (sheetId: string): Promise<string[]> => {
   }
 
   // Strategy 2: Try to fetch the 'index' sheet.
-  let url = `/api/sheets/${sheetId}?sheet=index`;
+  let url = `/api/sheets/${sheetId}/index`;
   console.log(`[LOG] Tentative de récupération de l'index des feuilles via le proxy : ${url}`);
 
   try {
@@ -224,7 +224,7 @@ export const getSheetNames = async (sheetId: string): Promise<string[]> => {
 };
 
 export const getSheetData = async (sheetId: string, sheetName: string): Promise<Record<string, string>[]> => {
-  const url = `/api/sheets/${sheetId}?sheet=${encodeURIComponent(sheetName)}`;
+  const url = `/api/sheets/${sheetId}/${encodeURIComponent(sheetName)}`;
   console.log(`[LOG] Tentative de récupération des données pour la feuille "${sheetName}" via le proxy : ${url}`);
   try {
     const response = await fetch(url);
@@ -280,7 +280,7 @@ export const getSheetData = async (sheetId: string, sheetName: string): Promise<
 // Récupère les données brutes (matrice string[][]) sans essayer de parser les headers.
 // Utile pour les feuilles contenant plusieurs tableaux (comme le Top 10).
 export const getRawSheetData = async (sheetId: string, sheetName: string): Promise<string[][]> => {
-  const url = `/api/sheets/${sheetId}?sheet=${encodeURIComponent(sheetName)}`;
+  const url = `/api/sheets/${sheetId}/${encodeURIComponent(sheetName)}`;
   console.log(`[LOG] Tentative de récupération des données BRUTES pour "${sheetName}"`);
 
   try {
