@@ -39,6 +39,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
+        filename: 'manifest.json',
         name: 'Analyseur de Ventes',
         short_name: 'Analyse Ventes',
         description: 'Visualisez les données de ventes depuis Google Sheets',
