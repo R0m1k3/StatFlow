@@ -193,7 +193,7 @@ export const getSheetNames = async (sheetId: string): Promise<string[]> => {
   }
 
   // Strategy 2: Try to fetch the 'index' sheet.
-  let url = `/api/sheets/${sheetId}?sheet=index`;
+  let url = `/api/sheets/${sheetId}/index`;
   console.log(`[LOG] Tentative de récupération de l'index des feuilles via le proxy : ${url}`);
 
   try {
@@ -224,7 +224,7 @@ export const getSheetNames = async (sheetId: string): Promise<string[]> => {
 };
 
 export const getSheetData = async (sheetId: string, sheetName: string): Promise<Record<string, string>[]> => {
-  const url = `/api/sheets/${sheetId}?sheet=${encodeURIComponent(sheetName)}`;
+  const url = `/api/sheets/${sheetId}/${encodeURIComponent(sheetName)}`;
   console.log(`[LOG] Tentative de récupération des données pour la feuille "${sheetName}" via le proxy : ${url}`);
   try {
     const response = await fetch(url);
@@ -232,20 +232,26 @@ export const getSheetData = async (sheetId: string, sheetName: string): Promise<
       throw new Error(`Statut HTTP : ${response.status}`);
     }
     const csvText = await response.text();
-    console.log(`[SUCCESS] Données pour la feuille "${sheetName}" récupérées et parsées.`);
     const data = parseCSV(csvText);
 
     // VALIDATION: Google Sheets returns the first sheet (index) if the requested sheet is not found.
-    // We must detect this case to avoid displaying the index instead of the data.
     if (sheetName !== 'index' && data.length > 0) {
       const firstRow = data[0];
       const keys = Object.keys(firstRow);
 
-      // Heuristic: If we have only 1 column and it looks like the index (header "Période" or values are dates)
-      const isIndex = keys.length === 1 && (
+      console.log(`[DEBUG] Validation feuille "${sheetName}". Keys:`, keys, "FirstRow:", firstRow);
+
+      // Heuristic: 
+      // 1. Only 1 column (or very few)
+      // 2. Header contains "Période" OR Header looks like a date (e.g. "2025-11")
+      // 3. First value looks like a date
+      const isDate = (str: string) => /^\d{4}[-]?\d{2}$/.test(str.trim());
+
+      const isIndex = (keys.length <= 2) && (
         keys[0].toLowerCase().includes('période') ||
         keys[0].toLowerCase().includes('period') ||
-        /^\d{4}[-]?\d{2}$/.test(Object.values(firstRow)[0])
+        isDate(keys[0]) || // The header itself is a date (happens if index has no header)
+        (firstRow && Object.values(firstRow)[0] && isDate(Object.values(firstRow)[0]))
       );
 
       if (isIndex) {
@@ -274,7 +280,7 @@ export const getSheetData = async (sheetId: string, sheetName: string): Promise<
 // Récupère les données brutes (matrice string[][]) sans essayer de parser les headers.
 // Utile pour les feuilles contenant plusieurs tableaux (comme le Top 10).
 export const getRawSheetData = async (sheetId: string, sheetName: string): Promise<string[][]> => {
-  const url = `/api/sheets/${sheetId}?sheet=${encodeURIComponent(sheetName)}`;
+  const url = `/api/sheets/${sheetId}/${encodeURIComponent(sheetName)}`;
   console.log(`[LOG] Tentative de récupération des données BRUTES pour "${sheetName}"`);
 
   try {

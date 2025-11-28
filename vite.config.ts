@@ -14,16 +14,19 @@ export default defineConfig({
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         },
         rewrite: (path) => {
-          // path is like /api/sheets/SHEET_ID?sheet=SHEET_NAME
+          // path is like /api/sheets/SHEET_ID/SHEET_NAME
+          // or /api/sheets/SHEET_ID/index
           const localUrl = new URL(path, 'http://localhost');
-          const pathParts = localUrl.pathname.split('/'); // ['', 'api', 'sheets', 'SHEET_ID']
+          const pathParts = localUrl.pathname.split('/');
+          // ['', 'api', 'sheets', 'SHEET_ID', 'SHEET_NAME']
+
           const sheetId = pathParts[3];
-          const sheetName = localUrl.searchParams.get('sheet');
+          const sheetName = pathParts[4] ? decodeURIComponent(pathParts[4]) : null;
 
           if (sheetId) {
             // Use gviz/tq endpoint for better reliability
             let dest = `/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
-            if (sheetName) {
+            if (sheetName && sheetName !== 'index') {
               dest += `&sheet=${encodeURIComponent(sheetName)}`;
             }
             return dest;
