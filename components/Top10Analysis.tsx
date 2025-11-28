@@ -51,94 +51,11 @@ const Top10Analysis: React.FC<Top10AnalysisProps> = ({ sheetId }) => {
             const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
               'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
             const monthName = months[parseInt(month) - 1];
-            foundPeriod = `Période ${monthName} ${year}`;
           }
-        }
-        setPeriod(foundPeriod);
+        };
 
-        console.log('[DEBUG TOP10] Period:', foundPeriod);
-        console.log('[DEBUG TOP10] Total rows:', rawData.length);
-        console.log('[DEBUG TOP10] First row:', rawData[0]);
-
-        // Parse the sheet
-        const parsedGroups: NomenclatureGroup[] = [];
-        let currentGroup: NomenclatureGroup | null = null;
-        let currentTableType: 'qty' | 'amount' | null = null;
-        let expectingHeaders = false;
-
-        for (let i = 0; i < rawData.length; i++) {
-          const row = rawData[i];
-          if (row.every(c => !c || c.trim() === '')) continue;
-
-          const firstCell = row[0] ? row[0].trim() : '';
-          const fullRowString = row.join(' ').toLowerCase();
-
-          if (firstCell.toLowerCase().startsWith('nomenclature')) {
-            if (currentGroup) parsedGroups.push(currentGroup);
-            currentGroup = { name: firstCell };
-            currentTableType = null;
-            expectingHeaders = false;
-            console.log('[DEBUG TOP10] Found nomenclature:', firstCell);
-            continue;
-          }
-
-          if (fullRowString.includes('top 10') || fullRowString.includes('top10')) {
-            if (fullRowString.includes('quant')) {
-              currentTableType = 'qty';
-              expectingHeaders = true;
-              console.log('[DEBUG TOP10] Found qty table');
-              continue;
-            } else if (fullRowString.includes('montant')) {
-              currentTableType = 'amount';
-              expectingHeaders = true;
-              console.log('[DEBUG TOP10] Found amount table');
-              continue;
-            }
-          }
-
-          if (expectingHeaders && currentGroup && currentTableType) {
-            const headers = row.map(c => c.trim()).filter(c => c !== '');
-            if (currentTableType === 'qty') {
-              currentGroup.qtyTable = { headers, rows: [] };
-            } else {
-              currentGroup.amountTable = { headers, rows: [] };
-            }
-            expectingHeaders = false;
-            console.log('[DEBUG TOP10] Headers:', headers);
-            continue;
-          }
-
-          if (currentGroup && currentTableType && !expectingHeaders) {
-            const cleanRow = row.map(c => c.trim());
-            if (/^\d+$/.test(cleanRow[0])) {
-              if (currentTableType === 'qty' && currentGroup.qtyTable) {
-                currentGroup.qtyTable.rows.push(cleanRow);
-              } else if (currentTableType === 'amount' && currentGroup.amountTable) {
-                currentGroup.amountTable.rows.push(cleanRow);
-              }
-            }
-          }
-        }
-
-        if (currentGroup) parsedGroups.push(currentGroup);
-
-        console.log('[DEBUG TOP10] Total groups:', parsedGroups.length);
-        parsedGroups.forEach((g, idx) => {
-          console.log(`[DEBUG TOP10] Group ${idx}: ${g.name}, Qty: ${g.qtyTable?.rows.length || 0}, Amt: ${g.amountTable?.rows.length || 0}`);
-        });
-
-        setGroups(parsedGroups);
-
-      } catch (err) {
-        console.error("Erreur parsing Top 10:", err);
-        setError("Impossible de charger les données Top 10.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [sheetId, selectedStore]);
+        fetchData();
+      }, [sheetId, selectedStore]);
 
   return (
     <div className="space-y-6">
