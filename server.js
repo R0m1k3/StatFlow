@@ -11,6 +11,11 @@ const __dirname = path.dirname(__filename);
 
 app.use(morgan('combined'));
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 app.get('/api/sheets/:sheetId/:sheetName?', async (req, res) => {
   const { sheetId, sheetName } = req.params;
 
@@ -22,14 +27,21 @@ app.get('/api/sheets/:sheetId/:sheetName?', async (req, res) => {
     googleSheetsUrl += `&sheet=${encodeURIComponent(decodeURIComponent(sheetName))}&range=A1:ZZ2000`;
   }
 
+  // Créer un AbortController pour le timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 secondes timeout
+
   try {
     console.log(`[PROXY] Tentative de fetch : ${googleSheetsUrl}`);
     const fetchResponse = await fetch(googleSheetsUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'text/csv;charset=UTF-8'
-      }
+      },
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     if (!fetchResponse.ok) {
       const errorText = await fetchResponse.text();
@@ -45,8 +57,15 @@ app.get('/api/sheets/:sheetId/:sheetName?', async (req, res) => {
     res.send(csvData);
     console.log(`[PROXY] Succès pour: ${sheetName || 'défaut'}`);
   } catch (error) {
-    console.error('[PROXY] Erreur:', error);
-    res.status(500).send({ error: 'Erreur serveur proxy.' });
+    clearTimeout(timeoutId);
+
+    if (error.name === 'AbortError') {
+      console.error('[PROXY] Timeout après 30 secondes');
+      return res.status(504).send('Timeout: Google Sheets ne répond pas');
+    }
+
+    console.error('[PROXY] Erreur:', error.message || error);
+    res.status(500).send({ error: 'Erreur serveur proxy.', details: error.message });
   }
 });
 
