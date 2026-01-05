@@ -225,7 +225,7 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, priorityColumns = [] 
         <div className="space-y-4">
           {processedData.map((row, index) => (
             <div key={index} className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm">
-              {displayedHeaders(columnGroups, reorderedHeaders, primaryKeyHeader, primaryKeyIsNonGrouped, nonGroupedHeaders, otherNonGroupedHeaders).map(header => (
+              {displayedHeaders(columnGroups, reorderedHeaders, primaryKeyHeader, primaryKeyIsNonGrouped, nonGroupedHeaders, otherNonGroupedHeaders, matchedPriorityColumns).map(header => (
                 <div key={header} className="grid grid-cols-2 gap-2 border-b border-slate-100 py-2.5 last:border-b-0">
                   <span className="font-medium text-slate-600 text-sm break-words">{header}</span>
                   <span className="text-right text-sm text-slate-800 break-words">{formatValue(row[header], header)}</span>
@@ -311,7 +311,7 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, priorityColumns = [] 
           <tbody className="bg-white divide-y divide-slate-200">
             {processedData.map((row, index) => (
               <tr key={index} className="hover:bg-slate-50/75 transition-colors">
-                {displayedHeaders(columnGroups, reorderedHeaders, primaryKeyHeader, primaryKeyIsNonGrouped, nonGroupedHeaders, otherNonGroupedHeaders).map(header => (
+                {displayedHeaders(columnGroups, reorderedHeaders, primaryKeyHeader, primaryKeyIsNonGrouped, nonGroupedHeaders, otherNonGroupedHeaders, matchedPriorityColumns).map(header => (
                   <td key={header} className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
                     {formatValue(row[header], header)}
                   </td>
@@ -331,8 +331,15 @@ function displayedHeaders(
   primaryKeyHeader: string | undefined,
   primaryKeyIsNonGrouped: boolean | undefined,
   nonGroupedHeaders: string[],
-  otherNonGroupedHeaders: string[]
+  otherNonGroupedHeaders: string[],
+  priorityColumns: string[] = []
 ) {
+  // Si on a des colonnes prioritaires, les mettre en premier
+  if (priorityColumns.length > 0) {
+    const remaining = reorderedHeaders.filter(h => !priorityColumns.includes(h));
+    return [...priorityColumns, ...remaining];
+  }
+
   if (columnGroups.length > 0) {
     const ordered: string[] = [];
     if (primaryKeyIsNonGrouped && primaryKeyHeader) {
