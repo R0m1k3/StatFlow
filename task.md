@@ -1,38 +1,24 @@
-# StatFlow - Fix Déploiement
+# StatFlow - Réorganisation Colonnes Hit Parade
 
-## Problème
+## Changements effectués
 
-L'application ne s'affiche plus après les modifications.
+### 1. `components/SheetDisplay.tsx`
 
-## Diagnostic
+- Ajout de la prop `priorityColumns` pour définir les colonnes à afficher en premier
+- Logique de réordonnancement mise à jour pour utiliser les colonnes prioritaires avant les autres
+- Correction du type `primaryKeyIsNonGrouped` pour éviter les erreurs TypeScript
 
-- ✅ Le build local fonctionne parfaitement
-- ✅ Le code est correct (37 modules transformés, 0 erreur)
-- ❌ Le problème est côté déploiement Docker
+### 2. `components/SheetAnalysis.tsx`  
 
-## Solution - Redéploiement complet
+- Passage de `priorityColumns` à `SheetDisplay` selon le `tabName`
+- Pour **Hit Parade** : colonnes CODEIN, GTIN, NOM, LIBELLE1 en premier
 
-Sur le serveur, exécuter ces commandes :
+## Prêt pour déploiement
 
 ```bash
-# 1. Arrêter le conteneur
-docker-compose down
-
-# 2. Supprimer les anciens builds et images
-docker system prune -f
-docker rmi sales-analyzer-app --force 2>/dev/null || true
-
-# 3. Reconstruire sans cache
-docker-compose build --no-cache
-
-# 4. Redémarrer
-docker-compose up -d
-
-# 5. Vérifier les logs
-docker logs sales-analyzer-app
+git add .
+git commit -m "feat: priorité colonnes CODEIN, GTIN, NOM, LIBELLE1 pour Hit Parade"
+git push
 ```
 
-## Si ça ne marche toujours pas
-
-Le problème est probablement dans la configuration Nginx externe.
-Vérifier que le proxy pointe vers le bon conteneur et port (8081).
+Puis redéployer Docker sur le serveur.

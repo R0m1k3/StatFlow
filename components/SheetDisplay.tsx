@@ -4,6 +4,7 @@ import { SearchIcon, SortAscIcon, SortDescIcon, SortIcon } from './Icons';
 
 interface SheetDisplayProps {
   data: Record<string, string>[];
+  priorityColumns?: string[];
 }
 
 type SortDirection = 'ascending' | 'descending';
@@ -74,21 +75,36 @@ const formatValue = (value: string, header: string) => {
 };
 
 
-const SheetDisplay: React.FC<SheetDisplayProps> = ({ data }) => {
+const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, priorityColumns = [] }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   const isMobile = useMediaQuery('(max-width: 768px)');
 
   const headers = useMemo(() => (data.length > 0 ? Object.keys(data[0]) : []), [data]);
 
+  // Trouve les colonnes prioritaires qui existent dans les données (case-insensitive)
+  const matchedPriorityColumns = useMemo(() => {
+    return priorityColumns
+      .map(pc => headers.find(h => h.toLowerCase() === pc.toLowerCase()))
+      .filter((h): h is string => h !== undefined);
+  }, [headers, priorityColumns]);
+
   const primaryKeyHeader = useMemo(() => {
+    // Si on a des colonnes prioritaires, on ne cherche pas de primaryKey supplémentaire
+    if (matchedPriorityColumns.length > 0) return undefined;
     return headers.find(h => ['nomenclature', 'fournisseur', 'famille', 'libelle', 'libellé'].includes(h.toLowerCase()));
-  }, [headers]);
+  }, [headers, matchedPriorityColumns]);
 
   const reorderedHeaders = useMemo(() => {
+    // Colonnes prioritaires en premier
+    if (matchedPriorityColumns.length > 0) {
+      const remaining = headers.filter(h => !matchedPriorityColumns.includes(h));
+      return [...matchedPriorityColumns, ...remaining];
+    }
+    // Sinon, comportement par défaut avec primaryKeyHeader
     if (!primaryKeyHeader) return headers;
     return [primaryKeyHeader, ...headers.filter(h => h !== primaryKeyHeader)];
-  }, [headers, primaryKeyHeader]);
+  }, [headers, matchedPriorityColumns, primaryKeyHeader]);
 
   const processedData = useMemo(() => {
     let filteredData = [...data];
@@ -182,7 +198,7 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data }) => {
 
   const allGroupedKeysSet = useMemo(() => new Set(columnGroups.flatMap(g => g.keys)), [columnGroups]);
   const nonGroupedHeaders = useMemo(() => reorderedHeaders.filter(h => !allGroupedKeysSet.has(h)), [reorderedHeaders, allGroupedKeysSet]);
-  const primaryKeyIsNonGrouped = primaryKeyHeader && nonGroupedHeaders.includes(primaryKeyHeader);
+  const primaryKeyIsNonGrouped = !!(primaryKeyHeader && nonGroupedHeaders.includes(primaryKeyHeader));
   const otherNonGroupedHeaders = useMemo(() => {
     if (primaryKeyIsNonGrouped) {
       return nonGroupedHeaders.filter(h => h !== primaryKeyHeader);

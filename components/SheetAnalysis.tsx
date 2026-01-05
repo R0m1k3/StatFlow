@@ -25,7 +25,7 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName, isActiv
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dateFormat, setDateFormat] = useState<DateFormat>('YYYY-MM');
-  
+
   const hasInitialized = useRef(false);
   const dataCache = useRef<Record<string, Record<string, string>[]>>({});
 
@@ -48,17 +48,17 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName, isActiv
       try {
         console.log(`[SheetAnalysis] [${sheetId}] Démarrage de la récupération de l'index.`);
         const names = await getSheetNames(sheetId);
-        
+
         const firstValidName = names.find(name => /^\d{4}-\d{1,2}$/.test(name) || /^\d{6}$/.test(name));
-        
+
         if (!firstValidName) {
-            if (names.length > 0) {
-                 setError("Aucune période valide (format AAAA-MM ou AAAAMM) n'a été trouvée.");
-            } else {
-                 setError("Impossible de lire l'index ou aucune feuille n'est disponible.");
-            }
-            setIsLoading(false);
-            return;
+          if (names.length > 0) {
+            setError("Aucune période valide (format AAAA-MM ou AAAAMM) n'a été trouvée.");
+          } else {
+            setError("Impossible de lire l'index ou aucune feuille n'est disponible.");
+          }
+          setIsLoading(false);
+          return;
         }
 
         const detectedFormat: DateFormat = firstValidName.includes('-') ? 'YYYY-MM' : 'YYYYMM';
@@ -74,18 +74,18 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName, isActiv
             year = name.substring(0, 4);
             month = name.substring(4, 6);
           }
-          
+
           if (year && month) {
             if (!acc[year]) {
               acc[year] = [];
             }
             if (!acc[year].includes(month)) {
-                acc[year].push(month);
+              acc[year].push(month);
             }
           }
           return acc;
         }, {} as PeriodData);
-        
+
         Object.keys(newPeriods).forEach(year => {
           newPeriods[year].sort((a, b) => parseInt(b) - parseInt(a));
         });
@@ -104,7 +104,7 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName, isActiv
             setIsLoading(false);
           }
         } else {
-            setIsLoading(false);
+          setIsLoading(false);
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Une erreur est survenue.';
@@ -126,13 +126,13 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName, isActiv
       const sheetName = dateFormat === 'YYYY-MM'
         ? `${selectedYear}-${selectedMonth}`
         : `${selectedYear}${selectedMonth}`;
-      
+
       if (dataCache.current[sheetName]) {
         setSheetData(dataCache.current[sheetName]);
         setIsLoading(false);
         return;
       }
-      
+
       setIsLoading(true);
       setError(null);
       try {
@@ -141,13 +141,13 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName, isActiv
         setSheetData(data);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Une erreur est survenue.';
-        
+
         // Handle 404 gracefully
         if (errorMessage.includes('404')) {
-             setError("Données non disponibles pour cette période.");
+          setError("Données non disponibles pour cette période.");
         } else {
-             console.error(`[SheetAnalysis] [${sheetId}] Erreur données pour "${sheetName}":`, err);
-             setError(errorMessage);
+          console.error(`[SheetAnalysis] [${sheetId}] Erreur données pour "${sheetName}":`, err);
+          setError(errorMessage);
         }
         setSheetData([]);
       } finally {
@@ -160,7 +160,7 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName, isActiv
 
   const processedSheetData = useMemo(() => {
     if (tabName === 'Hit Parade' && sheetData.length > 0) {
-      const keyToDelete = Object.keys(sheetData[0]).find(k => 
+      const keyToDelete = Object.keys(sheetData[0]).find(k =>
         k.trim().replace(/\s+/g, ' ').toLowerCase() === 'ca max fournisseur'
       );
       if (!keyToDelete) {
@@ -193,25 +193,29 @@ const SheetAnalysis: React.FC<SheetAnalysisProps> = ({ sheetId, tabName, isActiv
     if (error) {
       return (
         <div className="flex flex-col items-center justify-center p-10 bg-white border border-slate-200 rounded-lg">
-            <p className="text-slate-500 mb-2">{error}</p>
-            <p className="text-sm text-slate-400">Veuillez sélectionner une autre période.</p>
+          <p className="text-slate-500 mb-2">{error}</p>
+          <p className="text-sm text-slate-400">Veuillez sélectionner une autre période.</p>
         </div>
       );
     }
     if (processedSheetData.length > 0) {
-      return <SheetDisplay data={processedSheetData} />;
+      // Colonnes prioritaires pour Hit Parade
+      const priorityColumns = tabName === 'Hit Parade'
+        ? ['CODEIN', 'GTIN', 'NOM', 'LIBELLE1']
+        : [];
+      return <SheetDisplay data={processedSheetData} priorityColumns={priorityColumns} />;
     }
     if (years.length > 0) {
       return (
         <div className="bg-white border border-slate-200 rounded-lg p-10 text-center text-slate-500">
-            Aucune donnée à afficher pour la période sélectionnée.
+          Aucune donnée à afficher pour la période sélectionnée.
         </div>
       );
     }
     return (
-        <div className="bg-white border border-slate-200 rounded-lg p-10 text-center text-slate-500">
-            {isLoading ? <Spinner /> : "Initialisation de l'analyse..."}
-        </div>
+      <div className="bg-white border border-slate-200 rounded-lg p-10 text-center text-slate-500">
+        {isLoading ? <Spinner /> : "Initialisation de l'analyse..."}
+      </div>
     );
   };
 
