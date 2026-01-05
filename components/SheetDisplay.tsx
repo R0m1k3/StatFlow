@@ -225,8 +225,8 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, priorityColumns = [] 
         <div className="space-y-4">
           {processedData.map((row, index) => (
             <div key={index} className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm">
-              {displayedHeaders(columnGroups, reorderedHeaders, primaryKeyHeader, primaryKeyIsNonGrouped, nonGroupedHeaders, otherNonGroupedHeaders, matchedPriorityColumns).map(header => (
-                <div key={header} className="grid grid-cols-2 gap-2 border-b border-slate-100 py-2.5 last:border-b-0">
+              {displayedHeaders(columnGroups, reorderedHeaders, primaryKeyHeader, primaryKeyIsNonGrouped, nonGroupedHeaders, otherNonGroupedHeaders, matchedPriorityColumns).map((header, index) => (
+                <div key={header} className={`grid grid-cols-2 gap-2 border-b border-slate-100 py-2.5 last:border-b-0 ${index === 0 ? 'sticky top-0 bg-white z-10' : ''}`}>
                   <span className="font-medium text-slate-600 text-sm break-words">{header}</span>
                   <span className="text-right text-sm text-slate-800 break-words">{formatValue(row[header], header)}</span>
                 </div>
@@ -259,8 +259,8 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, priorityColumns = [] 
               <>
                 <tr>
                   {/* Colonnes prioritaires non groupées (AVANT les groupes) */}
-                  {matchedPriorityColumns.filter(h => otherNonGroupedHeaders.includes(h)).map(h => (
-                    <th key={h} rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom bg-slate-50">
+                  {matchedPriorityColumns.filter(h => otherNonGroupedHeaders.includes(h)).map((h, index) => (
+                    <th key={h} rowSpan={2} className={`px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom bg-slate-50 ${index === 0 ? 'sticky left-0 z-30 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''}`}>
                       <button onClick={() => requestSort(h)} className="flex items-center gap-1.5 group">
                         {h}
                         <span className="opacity-30 group-hover:opacity-100 transition-opacity">
@@ -271,7 +271,7 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, priorityColumns = [] 
                   ))}
 
                   {primaryKeyIsNonGrouped && primaryKeyHeader && (
-                    <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom bg-slate-50">
+                    <th rowSpan={2} className={`px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom bg-slate-50 ${matchedPriorityColumns.length === 0 ? 'sticky left-0 z-30 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''}`}>
                       <button onClick={() => requestSort(primaryKeyHeader)} className="flex items-center gap-1.5 group">
                         {primaryKeyHeader}
                         <span className="opacity-30 group-hover:opacity-100 transition-opacity">
@@ -309,8 +309,8 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, priorityColumns = [] 
               </>
             ) : (
               <tr>
-                {reorderedHeaders.map(header => (
-                  <th key={header} scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 bg-slate-50">
+                {reorderedHeaders.map((header, index) => (
+                  <th key={header} scope="col" className={`px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 bg-slate-50 ${index === 0 ? 'sticky left-0 z-30 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''}`}>
                     <button onClick={() => requestSort(header)} className="flex items-center gap-1.5 group">
                       <span>{header}</span>
                       <span className="opacity-30 group-hover:opacity-100 transition-opacity">
@@ -325,8 +325,8 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, priorityColumns = [] 
           <tbody className="bg-white divide-y divide-slate-200">
             {processedData.map((row, index) => (
               <tr key={index} className="hover:bg-slate-50/75 transition-colors">
-                {displayedHeaders(columnGroups, reorderedHeaders, primaryKeyHeader, primaryKeyIsNonGrouped, nonGroupedHeaders, otherNonGroupedHeaders, matchedPriorityColumns).map(header => (
-                  <td key={header} className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                {displayedHeaders(columnGroups, reorderedHeaders, primaryKeyHeader, primaryKeyIsNonGrouped, nonGroupedHeaders, otherNonGroupedHeaders, matchedPriorityColumns).map((header, index) => (
+                  <td key={header} className={`px-6 py-4 whitespace-nowrap text-sm text-slate-700 ${index === 0 ? 'sticky left-0 z-10 bg-white border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''}`}>
                     {formatValue(row[header], header)}
                   </td>
                 ))}

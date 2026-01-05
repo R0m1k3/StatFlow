@@ -4,7 +4,9 @@
 
 ### 1. `components/SheetDisplay.tsx`
 
-- Ajout de la prop `priorityColumns` pour définir les colonnes à afficher en premier
+- [x] Fix ordre colonnes Hit Parade (CODEIN, GTIN... en premier)
+- [x] Figer la 1ère colonne (sticky left) pour Analyse Famille/Fournisseur
+- [ ] Optimisation mobile
 - Logique de réordonnancement mise à jour pour utiliser les colonnes prioritaires avant les autres
 - Correction du type `primaryKeyIsNonGrouped` pour éviter les erreurs TypeScript
 
