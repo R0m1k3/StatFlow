@@ -258,6 +258,18 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, priorityColumns = [] 
             {columnGroups.length > 0 ? (
               <>
                 <tr>
+                  {/* Colonnes prioritaires non groupées (AVANT les groupes) */}
+                  {matchedPriorityColumns.filter(h => otherNonGroupedHeaders.includes(h)).map(h => (
+                    <th key={h} rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom bg-slate-50">
+                      <button onClick={() => requestSort(h)} className="flex items-center gap-1.5 group">
+                        {h}
+                        <span className="opacity-30 group-hover:opacity-100 transition-opacity">
+                          {sortConfig?.key === h ? (sortConfig.direction === 'ascending' ? <SortAscIcon /> : <SortDescIcon />) : <SortIcon />}
+                        </span>
+                      </button>
+                    </th>
+                  ))}
+
                   {primaryKeyIsNonGrouped && primaryKeyHeader && (
                     <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom bg-slate-50">
                       <button onClick={() => requestSort(primaryKeyHeader)} className="flex items-center gap-1.5 group">
@@ -269,7 +281,9 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, priorityColumns = [] 
                     </th>
                   )}
                   {columnGroups.map(group => <th key={group.name} colSpan={group.colspan} className={`px-6 py-2 text-center text-sm font-bold uppercase border-b ${getGroupHeaderStyle(group.name)}`}>{group.name}</th>)}
-                  {otherNonGroupedHeaders.map(h =>
+
+                  {/* Autres colonnes non groupées (APRÈS les groupes) */}
+                  {otherNonGroupedHeaders.filter(h => !matchedPriorityColumns.includes(h)).map(h =>
                     <th key={h} rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom bg-slate-50">
                       <button onClick={() => requestSort(h)} className="flex items-center gap-1.5 group">
                         {h}
