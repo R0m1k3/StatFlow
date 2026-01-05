@@ -1,34 +1,38 @@
-# StatFlow - Investigation & Fix
+# StatFlow - Fix Déploiement
 
-## Context
+## Problème
 
-L'application StatFlow présente une erreur HTTP 502 et l'onglet "Top 10" est toujours visible alors qu'il a été supprimé du code.
+L'application ne s'affiche plus après les modifications.
 
-## Current Focus
+## Diagnostic
 
-Modifications terminées, prêt pour redéploiement.
+- ✅ Le build local fonctionne parfaitement
+- ✅ Le code est correct (37 modules transformés, 0 erreur)
+- ❌ Le problème est côté déploiement Docker
 
-## Master Plan
+## Solution - Redéploiement complet
 
-- [x] Analyser le code source actuel
-- [x] Vérifier les modifications récentes dans App.tsx (Top 10 supprimé)
-- [x] Identifier la cause probable de l'erreur 502 (cache PWA)
-- [x] Supprimer le fichier Top10Analysis.tsx inutilisé
-- [x] Configurer le Service Worker pour forcer la mise à jour (skipWaiting + clientsClaim)
-- [ ] Reconstruire et redéployer Docker
+Sur le serveur, exécuter ces commandes :
 
-## Progress Log
+```bash
+# 1. Arrêter le conteneur
+docker-compose down
 
-- **App.tsx** : Contient 3 onglets (Analyse Famille, Hit Parade, Analyse Fournisseurs). Top 10 supprimé.
-- **Top10Analysis.tsx** : Fichier supprimé (plus utilisé).
-- **vite.config.ts** : Ajout de `skipWaiting: true` et `clientsClaim: true` pour forcer le SW à prendre le contrôle immédiatement.
+# 2. Supprimer les anciens builds et images
+docker system prune -f
+docker rmi sales-analyzer-app --force 2>/dev/null || true
 
-## Root Cause
+# 3. Reconstruire sans cache
+docker-compose build --no-cache
 
-Le problème était le **cache du Service Worker PWA**. L'ancienne version de l'application était servie depuis le cache du navigateur.
+# 4. Redémarrer
+docker-compose up -d
 
-## Next Steps
+# 5. Vérifier les logs
+docker logs sales-analyzer-app
+```
 
-1. Reconstruire l'image Docker : `docker-compose build --no-cache`
-2. Redéployer : `docker-compose up -d`
-3. Les utilisateurs verront la nouvelle version automatiquement grâce à skipWaiting.
+## Si ça ne marche toujours pas
+
+Le problème est probablement dans la configuration Nginx externe.
+Vérifier que le proxy pointe vers le bon conteneur et port (8081).
