@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import SheetAnalysis from './components/SheetAnalysis';
-import Top10Analysis from './components/Top10Analysis';
+
 import { LogoIcon } from './components/Icons';
 
 const TABS = [
   { name: 'Analyse Famille', component: 'SheetAnalysis', sheetId: '1tFCeunQtTq-v3OTOM6EraSBLCUlgkhajSEjwdKfSQj4' },
-  { name: 'Top 10', component: 'Top10Analysis', sheetId: '1s5poBaK7aWy1Wze2aMiEBWia1HWXIYVDHOYjj-nHvpU' },
+
   { name: 'Hit Parade', component: 'SheetAnalysis', sheetId: '1BZD599SY1q3OoZWjlAPUYysMEbWgwsOH8IZrchDx374' },
   { name: 'Analyse Fournisseurs', component: 'SheetAnalysis', sheetId: '1m92J7LubktT6U91gq9bFhNmuYZxY0yw9jgSFMze9lY4' },
 ];
@@ -62,13 +62,7 @@ const App: React.FC = () => {
               </div>
             );
           }
-          if (tab.component === 'Top10Analysis') {
-            return (
-              <div key={tab.sheetId} className="animate-in fade-in duration-300">
-                <Top10Analysis sheetId={tab.sheetId} />
-              </div>
-            );
-          }
+
           return null;
         })}
       </main>

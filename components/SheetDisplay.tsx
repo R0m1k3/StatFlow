@@ -29,48 +29,48 @@ const useMediaQuery = (query: string) => {
 
 // Utility helper for cleaning and parsing numbers (handles "1 000,00 %", "120 €" and non-breaking spaces)
 const parseFrenchNumber = (value: string): number => {
-    if (!value) return 0;
-    // Remove spaces, non-breaking spaces, % and currency symbols
-    const clean = value.replace(/[\s\u00A0%€$]/g, '').replace(',', '.');
-    const num = parseFloat(clean);
-    return isNaN(num) ? 0 : num;
+  if (!value) return 0;
+  // Remove spaces, non-breaking spaces, % and currency symbols
+  const clean = value.replace(/[\s\u00A0%€$]/g, '').replace(',', '.');
+  const num = parseFloat(clean);
+  return isNaN(num) ? 0 : num;
 };
 
 const formatValue = (value: string, header: string) => {
-    if (!value || value.trim() === '') return <span className="text-slate-400">-</span>;
-    
-    const h = header.toLowerCase();
+  if (!value || value.trim() === '') return <span className="text-slate-400">-</span>;
 
-    if (h.includes('évolution')) {
-        const num = parseFrenchNumber(value);
-        // Check if it looks like a number to apply color
-        if (/[0-9]/.test(value)) {
-             const isPositive = num > 0;
-             // If strictly 0, usually neutral, but let's keep it simple
-             const isZero = num === 0;
-             let colorClass = 'text-slate-600';
-             if (!isZero) colorClass = isPositive ? 'text-green-600' : 'text-red-600';
-             
-             return (
-                <span className={`flex items-center gap-1.5 font-medium ${colorClass}`}>
-                    {!isZero && (isPositive ? '▲' : '▼')}
-                    {value}
-                </span>
-            );
-        }
-        return value;
-    }
-    if (h.includes('codein')) {
-        return value.padStart(7, '0');
-    }
-    // Auto-format percentages if they are raw numbers < 1 and header suggests %
-    if ((header.includes('%') || h.includes('part')) && !value.includes('%')) {
-        const num = parseFrenchNumber(value);
-        if (!isNaN(num) && Math.abs(num) <= 1) {
-            return `${(num * 100).toFixed(2)} %`;
-        }
+  const h = header.toLowerCase();
+
+  if (h.includes('évolution')) {
+    const num = parseFrenchNumber(value);
+    // Check if it looks like a number to apply color
+    if (/[0-9]/.test(value)) {
+      const isPositive = num > 0;
+      // If strictly 0, usually neutral, but let's keep it simple
+      const isZero = num === 0;
+      let colorClass = 'text-slate-600';
+      if (!isZero) colorClass = isPositive ? 'text-green-600' : 'text-red-600';
+
+      return (
+        <span className={`flex items-center gap-1.5 font-medium ${colorClass}`}>
+          {!isZero && (isPositive ? '▲' : '▼')}
+          {value}
+        </span>
+      );
     }
     return value;
+  }
+  if (h.includes('codein')) {
+    return value.padStart(7, '0');
+  }
+  // Auto-format percentages if they are raw numbers < 1 and header suggests %
+  if ((header.includes('%') || h.includes('part')) && !value.includes('%')) {
+    const num = parseFrenchNumber(value);
+    if (!isNaN(num) && Math.abs(num) <= 1) {
+      return `${(num * 100).toFixed(2)} %`;
+    }
+  }
+  return value;
 };
 
 
@@ -78,11 +78,11 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   const isMobile = useMediaQuery('(max-width: 768px)');
-  
+
   const headers = useMemo(() => (data.length > 0 ? Object.keys(data[0]) : []), [data]);
 
   const primaryKeyHeader = useMemo(() => {
-      return headers.find(h => ['nomenclature', 'fournisseur', 'famille', 'libelle', 'libellé'].includes(h.toLowerCase()));
+    return headers.find(h => ['nomenclature', 'fournisseur', 'famille', 'libelle', 'libellé'].includes(h.toLowerCase()));
   }, [headers]);
 
   const reorderedHeaders = useMemo(() => {
@@ -105,14 +105,14 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data }) => {
       filteredData.sort((a, b) => {
         const aVal = a[sortConfig.key];
         const bVal = b[sortConfig.key];
-        
+
         const aNum = parseFrenchNumber(aVal);
         const bNum = parseFrenchNumber(bVal);
 
         // Check if both values act as numbers
         const aHasDigits = /[0-9]/.test(aVal);
         const bHasDigits = /[0-9]/.test(bVal);
-        
+
         // We consider them numbers if parseFrenchNumber returned a valid number AND they contain digits
         // exception: "0" is valid.
         const aIsNum = !isNaN(aNum) && aHasDigits;
@@ -120,11 +120,11 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data }) => {
 
         let comparison = 0;
         if (aIsNum && bIsNum) {
-            comparison = aNum - bNum;
+          comparison = aNum - bNum;
         } else {
-            comparison = (aVal || '').localeCompare(bVal || '', 'fr', { numeric: true });
+          comparison = (aVal || '').localeCompare(bVal || '', 'fr', { numeric: true });
         }
-        
+
         return sortConfig.direction === 'ascending' ? comparison : -comparison;
       });
     }
@@ -139,7 +139,7 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data }) => {
     }
     setSortConfig({ key, direction });
   };
-  
+
   const columnGroups = useMemo(() => {
     const groups: { name: string; colspan: number; keys: string[] }[] = [];
     const groupedKeys = new Set<string>();
@@ -149,23 +149,23 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data }) => {
       groups.push({ name: 'Houdemont', colspan: houdemontKeys.length, keys: houdemontKeys });
       houdemontKeys.forEach(k => groupedKeys.add(k));
     }
-    
+
     const frouardKeys = headers.filter(h => h.toLowerCase().includes('frouard'));
     if (frouardKeys.length > 0) {
       groups.push({ name: 'Frouard', colspan: frouardKeys.length, keys: frouardKeys });
       frouardKeys.forEach(k => groupedKeys.add(k));
     }
-    
+
     // Consolidé/Global : often contains CA, Marge, etc without specific location
     // We filter out keys already grouped
     const autresKeys = headers.filter(h => !groupedKeys.has(h) && (h.startsWith('CA') || h.startsWith('Marge') || h.includes('%') || h.includes('Qte') || h.includes('Evolution')));
-    
+
     // Only create a "Global" group if we have location groups to contrast with
     if ((houdemontKeys.length > 0 || frouardKeys.length > 0) && autresKeys.length > 0) {
       groups.push({ name: 'Global', colspan: autresKeys.length, keys: autresKeys });
       autresKeys.forEach(k => groupedKeys.add(k));
     }
-    
+
     return groups;
   }, [headers]);
 
@@ -184,10 +184,10 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data }) => {
   const nonGroupedHeaders = useMemo(() => reorderedHeaders.filter(h => !allGroupedKeysSet.has(h)), [reorderedHeaders, allGroupedKeysSet]);
   const primaryKeyIsNonGrouped = primaryKeyHeader && nonGroupedHeaders.includes(primaryKeyHeader);
   const otherNonGroupedHeaders = useMemo(() => {
-      if (primaryKeyIsNonGrouped) {
-          return nonGroupedHeaders.filter(h => h !== primaryKeyHeader);
-      }
-      return nonGroupedHeaders;
+    if (primaryKeyIsNonGrouped) {
+      return nonGroupedHeaders.filter(h => h !== primaryKeyHeader);
+    }
+    return nonGroupedHeaders;
   }, [nonGroupedHeaders, primaryKeyHeader, primaryKeyIsNonGrouped]);
 
 
@@ -195,16 +195,16 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data }) => {
     return (
       <div className="space-y-4">
         <div className="relative">
-            <input
+          <input
             type="text"
             placeholder="Rechercher..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="w-full p-2 pl-10 border border-slate-300 rounded-md focus:ring-sky-500 focus:border-sky-500 bg-white"
-            />
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          />
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <SearchIcon className="h-5 w-5 text-slate-400" />
-            </div>
+          </div>
         </div>
         <div className="space-y-4">
           {processedData.map((row, index) => (
@@ -241,55 +241,55 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data }) => {
           <thead className="bg-slate-50 sticky top-0 z-20 shadow-sm">
             {columnGroups.length > 0 ? (
               <>
-                 <tr>
-                    {primaryKeyIsNonGrouped && primaryKeyHeader && (
-                        <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom bg-slate-50">
-                           <button onClick={() => requestSort(primaryKeyHeader)} className="flex items-center gap-1.5 group">
-                             {primaryKeyHeader}
-                             <span className="opacity-30 group-hover:opacity-100 transition-opacity">
-                                {sortConfig?.key === primaryKeyHeader ? (sortConfig.direction === 'ascending' ? <SortAscIcon /> : <SortDescIcon />) : <SortIcon />}
-                             </span>
-                           </button>
-                        </th>
-                    )}
-                    {columnGroups.map(group => <th key={group.name} colSpan={group.colspan} className={`px-6 py-2 text-center text-sm font-bold uppercase border-b ${getGroupHeaderStyle(group.name)}`}>{group.name}</th>)}
-                    {otherNonGroupedHeaders.map(h => 
-                        <th key={h} rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom bg-slate-50">
-                           <button onClick={() => requestSort(h)} className="flex items-center gap-1.5 group">
-                             {h}
-                             <span className="opacity-30 group-hover:opacity-100 transition-opacity">
-                                {sortConfig?.key === h ? (sortConfig.direction === 'ascending' ? <SortAscIcon /> : <SortDescIcon />) : <SortIcon />}
-                             </span>
-                           </button>
-                        </th>
-                    )}
+                <tr>
+                  {primaryKeyIsNonGrouped && primaryKeyHeader && (
+                    <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom bg-slate-50">
+                      <button onClick={() => requestSort(primaryKeyHeader)} className="flex items-center gap-1.5 group">
+                        {primaryKeyHeader}
+                        <span className="opacity-30 group-hover:opacity-100 transition-opacity">
+                          {sortConfig?.key === primaryKeyHeader ? (sortConfig.direction === 'ascending' ? <SortAscIcon /> : <SortDescIcon />) : <SortIcon />}
+                        </span>
+                      </button>
+                    </th>
+                  )}
+                  {columnGroups.map(group => <th key={group.name} colSpan={group.colspan} className={`px-6 py-2 text-center text-sm font-bold uppercase border-b ${getGroupHeaderStyle(group.name)}`}>{group.name}</th>)}
+                  {otherNonGroupedHeaders.map(h =>
+                    <th key={h} rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom bg-slate-50">
+                      <button onClick={() => requestSort(h)} className="flex items-center gap-1.5 group">
+                        {h}
+                        <span className="opacity-30 group-hover:opacity-100 transition-opacity">
+                          {sortConfig?.key === h ? (sortConfig.direction === 'ascending' ? <SortAscIcon /> : <SortDescIcon />) : <SortIcon />}
+                        </span>
+                      </button>
+                    </th>
+                  )}
                 </tr>
                 <tr>
-                    {columnGroups.flatMap(g => g.keys).map(header => (
-                        <th key={header} scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider bg-slate-50 border-b border-slate-200">
-                          <button onClick={() => requestSort(header)} className="flex items-center gap-1.5 group">
-                            <span>{header}</span>
-                            <span className="opacity-30 group-hover:opacity-100 transition-opacity">
-                              {sortConfig?.key === header ? (sortConfig.direction === 'ascending' ? <SortAscIcon /> : <SortDescIcon />) : <SortIcon />}
-                            </span>
-                          </button>
-                        </th>
-                    ))}
+                  {columnGroups.flatMap(g => g.keys).map(header => (
+                    <th key={header} scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider bg-slate-50 border-b border-slate-200">
+                      <button onClick={() => requestSort(header)} className="flex items-center gap-1.5 group">
+                        <span>{header}</span>
+                        <span className="opacity-30 group-hover:opacity-100 transition-opacity">
+                          {sortConfig?.key === header ? (sortConfig.direction === 'ascending' ? <SortAscIcon /> : <SortDescIcon />) : <SortIcon />}
+                        </span>
+                      </button>
+                    </th>
+                  ))}
                 </tr>
               </>
             ) : (
-                <tr>
-                    {reorderedHeaders.map(header => (
-                        <th key={header} scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 bg-slate-50">
-                          <button onClick={() => requestSort(header)} className="flex items-center gap-1.5 group">
-                            <span>{header}</span>
-                            <span className="opacity-30 group-hover:opacity-100 transition-opacity">
-                              {sortConfig?.key === header ? (sortConfig.direction === 'ascending' ? <SortAscIcon /> : <SortDescIcon />) : <SortIcon />}
-                            </span>
-                          </button>
-                        </th>
-                    ))}
-                </tr>
+              <tr>
+                {reorderedHeaders.map(header => (
+                  <th key={header} scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 bg-slate-50">
+                    <button onClick={() => requestSort(header)} className="flex items-center gap-1.5 group">
+                      <span>{header}</span>
+                      <span className="opacity-30 group-hover:opacity-100 transition-opacity">
+                        {sortConfig?.key === header ? (sortConfig.direction === 'ascending' ? <SortAscIcon /> : <SortDescIcon />) : <SortIcon />}
+                      </span>
+                    </button>
+                  </th>
+                ))}
+              </tr>
             )}
           </thead>
           <tbody className="bg-white divide-y divide-slate-200">
@@ -310,26 +310,26 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data }) => {
 };
 
 function displayedHeaders(
-    columnGroups: { keys: string[] }[], 
-    reorderedHeaders: string[], 
-    primaryKeyHeader: string | undefined, 
-    primaryKeyIsNonGrouped: boolean | undefined, 
-    nonGroupedHeaders: string[], 
-    otherNonGroupedHeaders: string[]
+  columnGroups: { keys: string[] }[],
+  reorderedHeaders: string[],
+  primaryKeyHeader: string | undefined,
+  primaryKeyIsNonGrouped: boolean | undefined,
+  nonGroupedHeaders: string[],
+  otherNonGroupedHeaders: string[]
 ) {
-    if (columnGroups.length > 0) {
-        const ordered: string[] = [];
-        if (primaryKeyIsNonGrouped && primaryKeyHeader) {
-            ordered.push(primaryKeyHeader);
-            ordered.push(...columnGroups.flatMap(g => g.keys));
-            ordered.push(...otherNonGroupedHeaders);
-        } else {
-            ordered.push(...nonGroupedHeaders);
-            ordered.push(...columnGroups.flatMap(g => g.keys));
-        }
-        return ordered;
+  if (columnGroups.length > 0) {
+    const ordered: string[] = [];
+    if (primaryKeyIsNonGrouped && primaryKeyHeader) {
+      ordered.push(primaryKeyHeader);
+      ordered.push(...columnGroups.flatMap(g => g.keys));
+      ordered.push(...otherNonGroupedHeaders);
+    } else {
+      ordered.push(...columnGroups.flatMap(g => g.keys));
+      ordered.push(...nonGroupedHeaders);
     }
-    return reorderedHeaders;
+    return ordered;
+  }
+  return reorderedHeaders;
 }
 
 export default SheetDisplay;
