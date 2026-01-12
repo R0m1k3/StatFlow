@@ -156,25 +156,40 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, priorityColumns = [] 
     setSortConfig({ key, direction });
   };
 
+  // Set of priority columns (lowercase) to exclude from grouping
+  const prioritySet = useMemo(() =>
+    new Set(matchedPriorityColumns.map(p => p.toLowerCase())),
+    [matchedPriorityColumns]
+  );
+
   const columnGroups = useMemo(() => {
     const groups: { name: string; colspan: number; keys: string[] }[] = [];
     const groupedKeys = new Set<string>();
 
-    const houdemontKeys = headers.filter(h => h.toLowerCase().includes('houdemont'));
+    // Exclude priority columns from all groups
+    const houdemontKeys = headers.filter(h =>
+      h.toLowerCase().includes('houdemont') && !prioritySet.has(h.toLowerCase())
+    );
     if (houdemontKeys.length > 0) {
       groups.push({ name: 'Houdemont', colspan: houdemontKeys.length, keys: houdemontKeys });
       houdemontKeys.forEach(k => groupedKeys.add(k));
     }
 
-    const frouardKeys = headers.filter(h => h.toLowerCase().includes('frouard'));
+    const frouardKeys = headers.filter(h =>
+      h.toLowerCase().includes('frouard') && !prioritySet.has(h.toLowerCase())
+    );
     if (frouardKeys.length > 0) {
       groups.push({ name: 'Frouard', colspan: frouardKeys.length, keys: frouardKeys });
       frouardKeys.forEach(k => groupedKeys.add(k));
     }
 
-    // Consolidé/Global : often contains CA, Marge, etc without specific location
-    // We filter out keys already grouped
-    const autresKeys = headers.filter(h => !groupedKeys.has(h) && (h.startsWith('CA') || h.startsWith('Marge') || h.includes('%') || h.includes('Qte') || h.includes('Evolution')));
+    // Consolidé/Global : contains CA, Marge, etc without specific location
+    // Exclude priority columns and already grouped columns
+    const autresKeys = headers.filter(h =>
+      !groupedKeys.has(h) &&
+      !prioritySet.has(h.toLowerCase()) &&
+      (h.startsWith('CA') || h.startsWith('Marge') || h.includes('%') || h.includes('Qte') || h.includes('Evolution'))
+    );
 
     // Only create a "Global" group if we have location groups to contrast with
     if ((houdemontKeys.length > 0 || frouardKeys.length > 0) && autresKeys.length > 0) {
@@ -183,7 +198,7 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, priorityColumns = [] 
     }
 
     return groups;
-  }, [headers]);
+  }, [headers, prioritySet]);
 
   const getGroupHeaderStyle = (groupName: string) => {
     switch (groupName.toLowerCase()) {
@@ -258,8 +273,8 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, priorityColumns = [] 
             {columnGroups.length > 0 ? (
               <>
                 <tr>
-                  {/* Colonnes prioritaires non groupées (AVANT les groupes) */}
-                  {matchedPriorityColumns.filter(h => otherNonGroupedHeaders.includes(h)).map((h, index) => (
+                  {/* Colonnes prioritaires (TOUJOURS affichées en premier avec rowSpan=2) */}
+                  {matchedPriorityColumns.map((h, index) => (
                     <th key={h} rowSpan={2} className={`px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom bg-slate-50 ${index === 0 ? 'sticky left-0 z-30 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''}`}>
                       <button onClick={() => requestSort(h)} className="flex items-center gap-1.5 group">
                         {h}
@@ -270,8 +285,9 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, priorityColumns = [] 
                     </th>
                   ))}
 
-                  {primaryKeyIsNonGrouped && primaryKeyHeader && (
-                    <th rowSpan={2} className={`px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom bg-slate-50 ${matchedPriorityColumns.length === 0 ? 'sticky left-0 z-30 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''}`}>
+                  {/* Primary key header only if no priority columns and it's non-grouped */}
+                  {matchedPriorityColumns.length === 0 && primaryKeyIsNonGrouped && primaryKeyHeader && (
+                    <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom bg-slate-50 sticky left-0 z-30 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                       <button onClick={() => requestSort(primaryKeyHeader)} className="flex items-center gap-1.5 group">
                         {primaryKeyHeader}
                         <span className="opacity-30 group-hover:opacity-100 transition-opacity">
@@ -282,17 +298,19 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, priorityColumns = [] 
                   )}
                   {columnGroups.map(group => <th key={group.name} colSpan={group.colspan} className={`px-6 py-2 text-center text-sm font-bold uppercase border-b ${getGroupHeaderStyle(group.name)}`}>{group.name}</th>)}
 
-                  {/* Autres colonnes non groupées (APRÈS les groupes) */}
-                  {otherNonGroupedHeaders.filter(h => !matchedPriorityColumns.includes(h)).map(h =>
-                    <th key={h} rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom bg-slate-50">
-                      <button onClick={() => requestSort(h)} className="flex items-center gap-1.5 group">
-                        {h}
-                        <span className="opacity-30 group-hover:opacity-100 transition-opacity">
-                          {sortConfig?.key === h ? (sortConfig.direction === 'ascending' ? <SortAscIcon /> : <SortDescIcon />) : <SortIcon />}
-                        </span>
-                      </button>
-                    </th>
-                  )}
+                  {/* Autres colonnes non groupées (APRÈS les groupes) - exclut priority et primaryKey */}
+                  {otherNonGroupedHeaders
+                    .filter(h => !matchedPriorityColumns.includes(h) && h !== primaryKeyHeader)
+                    .map(h =>
+                      <th key={h} rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom bg-slate-50">
+                        <button onClick={() => requestSort(h)} className="flex items-center gap-1.5 group">
+                          {h}
+                          <span className="opacity-30 group-hover:opacity-100 transition-opacity">
+                            {sortConfig?.key === h ? (sortConfig.direction === 'ascending' ? <SortAscIcon /> : <SortDescIcon />) : <SortIcon />}
+                          </span>
+                        </button>
+                      </th>
+                    )}
                 </tr>
                 <tr>
                   {columnGroups.flatMap(g => g.keys).map(header => (
@@ -348,24 +366,32 @@ function displayedHeaders(
   otherNonGroupedHeaders: string[],
   priorityColumns: string[] = []
 ) {
-  // Si on a des colonnes prioritaires, les mettre en premier
-  if (priorityColumns.length > 0) {
-    const remaining = reorderedHeaders.filter(h => !priorityColumns.includes(h));
-    return [...priorityColumns, ...remaining];
-  }
-
+  // If we have column groups, use the exact order from thead:
+  // priority → (primaryKey if no priority) → groups → other non-grouped
   if (columnGroups.length > 0) {
     const ordered: string[] = [];
-    if (primaryKeyIsNonGrouped && primaryKeyHeader) {
+
+    // 1. Priority columns first (always)
+    ordered.push(...priorityColumns);
+
+    // 2. Primary key only if no priority columns and it's non-grouped
+    if (priorityColumns.length === 0 && primaryKeyIsNonGrouped && primaryKeyHeader) {
       ordered.push(primaryKeyHeader);
-      ordered.push(...columnGroups.flatMap(g => g.keys));
-      ordered.push(...otherNonGroupedHeaders);
-    } else {
-      ordered.push(...columnGroups.flatMap(g => g.keys));
-      ordered.push(...nonGroupedHeaders);
     }
+
+    // 3. Column groups (Houdemont, Frouard, Global)
+    ordered.push(...columnGroups.flatMap(g => g.keys));
+
+    // 4. Other non-grouped columns (excluding priority and primaryKey)
+    const remaining = otherNonGroupedHeaders.filter(
+      h => !priorityColumns.includes(h) && h !== primaryKeyHeader
+    );
+    ordered.push(...remaining);
+
     return ordered;
   }
+
+  // No column groups: just use reorderedHeaders
   return reorderedHeaders;
 }
 
