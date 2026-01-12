@@ -273,6 +273,22 @@ const SheetDisplay: React.FC<SheetDisplayProps> = ({ data, priorityColumns = [] 
             {columnGroups.length > 0 ? (
               <>
                 <tr>
+                  {(() => {
+                    const debugTheadOrder: string[] = [];
+                    // Colonnes prioritaires
+                    matchedPriorityColumns.forEach(h => debugTheadOrder.push(`PRIO:${h}`));
+                    // Primary Key (skipped)
+                    if (matchedPriorityColumns.length === 0 && primaryKeyIsNonGrouped && primaryKeyHeader) debugTheadOrder.push(`PRIM:${primaryKeyHeader}`);
+                    // Groups
+                    columnGroups.forEach(g => g.keys.forEach(k => debugTheadOrder.push(`GROUP:${g.name}:${k}`)));
+                    // Others
+                    otherNonGroupedHeaders
+                      .filter(h => !matchedPriorityColumns.includes(h) && h !== primaryKeyHeader)
+                      .forEach(h => debugTheadOrder.push(`OTHER:${h}`));
+
+                    console.log('[DEBUG] THEAD Order:', debugTheadOrder);
+                    return null;
+                  })()}
                   {/* Colonnes prioritaires (TOUJOURS affichées en premier avec rowSpan=2) */}
                   {matchedPriorityColumns.map((h, index) => (
                     <th key={h} rowSpan={2} className={`px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 align-bottom bg-slate-50 ${index === 0 ? 'sticky left-0 z-30 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''}`}>
